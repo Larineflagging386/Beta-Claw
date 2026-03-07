@@ -1,0 +1,276 @@
+import { z } from 'zod';
+import type {
+  IProviderAdapter,
+  CompletionRequest,
+  CompletionResponse,
+  CompletionChunk,
+  TokenCost,
+  ModelCatalogResponse,
+  ProviderFeature,
+} from './interface.js';
+
+const GEMINI_MODELS = [
+  {
+    id: 'gemini-2.0-flash',
+    name: 'Gemini 2.0 Flash',
+    contextWindow: 1_048_576,
+    inputCostPer1M: 0.1,
+    outputCostPer1M: 0.4,
+    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'system_message'],
+  },
+  {
+    id: 'gemini-1.5-pro',
+    name: 'Gemini 1.5 Pro',
+    contextWindow: 2_097_152,
+    inputCostPer1M: 1.25,
+    outputCostPer1M: 5.0,
+    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'system_message'],
+  },
+  {
+    id: 'gemini-1.5-flash',
+    name: 'Gemini 1.5 Flash',
+    contextWindow: 1_048_576,
+    inputCostPer1M: 0.075,
+    outputCostPer1M: 0.3,
+    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'system_message'],
+  },
+];
+
+const GeminiResponseSchema = z.object({
+  candidates: z.array(
+    z.object({
+      content: z.object({
+        parts: z.array(z.object({ text: z.string().optional() })),
+        role: z.string(),
+      }),
+      finishReason: z.string().optional(),
+    }),
+  ),
+  usageMetadata: z
+    .object({
+      promptTokenCount: z.number().int().default(0),
+      candidatesTokenCount: z.number().int().default(0),
+      totalTokenCount: z.number().int().default(0),
+    })
+    .optional(),
+});
+
+type SecretAccessor = () => string;
+
+class GoogleAdapter implements IProviderAdapter {
+  readonly id = 'google';
+  readonly name = 'Google (Gemini)';
+  readonly baseURL = 'https://generativelanguage.googleapis.com/v1beta';
+
+  private readonly getApiKey: SecretAccessor;
+
+  constructor(getApiKey: SecretAccessor) {
+    this.getApiKey = getApiKey;
+  }
+
+  async fetchAvailableModels(): Promise<ModelCatalogResponse> {
+    return {
+      models: GEMINI_MODELS.map((m) => ({
+        id: m.id,
+        name: m.name,
+        contextWindow: m.contextWindow,
+        inputCostPer1M: m.inputCostPer1M,
+        outputCostPer1M: m.outputCostPer1M,
+        capabilities: [...m.capabilities],
+        deprecated: false,
+      })),
+      fetchedAt: Math.floor(Date.now() / 1000),
+      providerID: this.id,
+    };
+  }
+
+  async complete(req: CompletionRequest): Promise<CompletionResponse> {
+    const body = this.buildRequestBody(req);
+    const url = `${this.baseURL}/models/${req.model}:generateContent?key=${this.getApiKey()}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Google completion failed: ${response.status} ${errorText}`);
+    }
+
+    const raw: unknown = await response.json();
+    const parsed = GeminiResponseSchema.parse(raw);
+
+    const candidate = parsed.candidates[0];
+    if (!candidate) {
+      throw new Error('Google returned empty candidates');
+    }
+
+    const content = candidate.content.parts.map((p) => p.text ?? '').join('');
+
+    return {
+      content,
+      model: req.model,
+      usage: {
+        inputTokens: parsed.usageMetadata?.promptTokenCount ?? 0,
+        outputTokens: parsed.usageMetadata?.candidatesTokenCount ?? 0,
+        totalTokens: parsed.usageMetadata?.totalTokenCount ?? 0,
+      },
+      finishReason: this.mapFinishReason(candidate.finishReason),
+    };
+  }
+
+  async *stream(req: CompletionRequest): AsyncIterable<CompletionChunk> {
+    const body = this.buildRequestBody(req);
+    const url = `${this.baseURL}/models/${req.model}:streamGenerateContent?key=${this.getApiKey()}&alt=sse`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Google stream failed: ${response.status} ${errorText}`);
+    }
+
+    if (!response.body) {
+      throw new Error('Google stream returned no body');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          const data = trimmed.slice(6);
+
+          try {
+            const chunk = GeminiResponseSchema.parse(JSON.parse(data));
+            const candidate = chunk.candidates[0];
+            const content = candidate?.content.parts.map((p) => p.text ?? '').join('') ?? '';
+            const isDone =
+              candidate?.finishReason === 'STOP' || candidate?.finishReason === 'MAX_TOKENS';
+
+            yield {
+              content,
+              done: isDone,
+              usage:
+                isDone && chunk.usageMetadata
+                  ? {
+                      inputTokens: chunk.usageMetadata.promptTokenCount,
+                      outputTokens: chunk.usageMetadata.candidatesTokenCount,
+                      totalTokens: chunk.usageMetadata.totalTokenCount,
+                    }
+                  : undefined,
+            };
+          } catch {
+            // skip malformed chunks
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  }
+
+  estimateCost(req: CompletionRequest): TokenCost {
+    const avgCharsPerToken = 4;
+    const inputChars =
+      req.messages.reduce((sum, m) => sum + m.content.length, 0) +
+      (req.systemPrompt?.length ?? 0);
+    const estimatedInputTokens = Math.ceil(inputChars / avgCharsPerToken);
+    const estimatedOutputTokens = req.maxTokens ?? Math.ceil(estimatedInputTokens * 0.5);
+
+    const model = GEMINI_MODELS.find((m) => req.model === m.id);
+    const inputCost = model?.inputCostPer1M ?? 0.1;
+    const outputCost = model?.outputCostPer1M ?? 0.4;
+
+    return {
+      estimatedInputTokens,
+      estimatedOutputTokens,
+      estimatedCostUSD:
+        (estimatedInputTokens / 1_000_000) * inputCost +
+        (estimatedOutputTokens / 1_000_000) * outputCost,
+    };
+  }
+
+  supportsFeature(feature: ProviderFeature): boolean {
+    const supported: Set<ProviderFeature> = new Set([
+      'streaming',
+      'function_calling',
+      'vision',
+      'json_mode',
+      'system_message',
+    ]);
+    return supported.has(feature);
+  }
+
+  private buildRequestBody(req: CompletionRequest): Record<string, unknown> {
+    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+
+    for (const msg of req.messages) {
+      contents.push({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }],
+      });
+    }
+
+    const body: Record<string, unknown> = { contents };
+
+    if (req.systemPrompt) {
+      body['systemInstruction'] = { parts: [{ text: req.systemPrompt }] };
+    }
+
+    const generationConfig: Record<string, unknown> = {};
+    if (req.maxTokens) generationConfig['maxOutputTokens'] = req.maxTokens;
+    if (req.temperature !== undefined) generationConfig['temperature'] = req.temperature;
+    if (Object.keys(generationConfig).length > 0) {
+      body['generationConfig'] = generationConfig;
+    }
+
+    if (req.tools && req.tools.length > 0) {
+      body['tools'] = [
+        {
+          functionDeclarations: req.tools.map((t) => ({
+            name: t.name,
+            description: t.description,
+            parameters: t.parameters,
+          })),
+        },
+      ];
+    }
+
+    return body;
+  }
+
+  private mapFinishReason(
+    reason: string | undefined,
+  ): 'stop' | 'length' | 'tool_use' | 'error' {
+    switch (reason) {
+      case 'STOP':
+        return 'stop';
+      case 'MAX_TOKENS':
+        return 'length';
+      case 'SAFETY':
+        return 'error';
+      default:
+        return 'stop';
+    }
+  }
+}
+
+export { GoogleAdapter };
