@@ -37,3 +37,17 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+.micro/vault.enc
+.micro/vault.salt
+.micro/model-catalog.db
+.micro/snapshots/
+.micro/logs/
+.micro/config.toon
+
+# Database
+microclaw.db
+microclaw.db-wal
+microclaw.db-shm
+
+# Group workspaces
+groups/*/workspace/
