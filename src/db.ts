@@ -7,23 +7,23 @@ const MessageSchema = z.object({
   group_id: z.string(),
   sender_id: z.string(),
   content: z.string(),
-  content_redacted: z.string().nullable().optional(),
+  content_redacted: z.string().nullable().default(null),
   timestamp: z.number().int(),
   channel: z.string(),
-  reply_to_id: z.string().nullable().optional(),
+  reply_to_id: z.string().nullable().default(null),
   processed: z.number().int().default(0),
-  error: z.string().nullable().optional(),
+  error: z.string().nullable().default(null),
 });
 
 const SessionSchema = z.object({
   id: z.string(),
   group_id: z.string(),
-  summary: z.string().nullable().optional(),
-  key_facts: z.string().nullable().optional(),
-  token_count: z.number().int().nullable().optional(),
+  summary: z.string().nullable().default(null),
+  key_facts: z.string().nullable().default(null),
+  token_count: z.number().int().nullable().default(null),
   started_at: z.number().int(),
-  ended_at: z.number().int().nullable().optional(),
-  model_used: z.string().nullable().optional(),
+  ended_at: z.number().int().nullable().default(null),
+  model_used: z.string().nullable().default(null),
 });
 
 const ToolCacheSchema = z.object({
@@ -31,7 +31,7 @@ const ToolCacheSchema = z.object({
   tool_name: z.string(),
   input_hash: z.string(),
   result: z.string(),
-  group_id: z.string().nullable().optional(),
+  group_id: z.string().nullable().default(null),
   created_at: z.number().int(),
   expires_at: z.number().int(),
   hit_count: z.number().int().default(0),
@@ -44,28 +44,28 @@ const ScheduledTaskSchema = z.object({
   cron: z.string(),
   instruction: z.string(),
   enabled: z.number().int().default(1),
-  last_run: z.number().int().nullable().optional(),
-  next_run: z.number().int().nullable().optional(),
+  last_run: z.number().int().nullable().default(null),
+  next_run: z.number().int().nullable().default(null),
 });
 
 const GroupSchema = z.object({
   id: z.string(),
   channel: z.string(),
-  name: z.string().nullable().optional(),
+  name: z.string().nullable().default(null),
   trigger_word: z.string().default('@Andy'),
   execution_mode: z.string().default('isolated'),
-  allowed_tools: z.string().nullable().optional(),
+  allowed_tools: z.string().nullable().default(null),
 });
 
 const ModelCatalogSchema = z.object({
   provider_id: z.string(),
   model_id: z.string(),
   model_name: z.string(),
-  context_window: z.number().int().nullable().optional(),
-  input_cost_per_1m: z.number().nullable().optional(),
-  output_cost_per_1m: z.number().nullable().optional(),
-  capabilities: z.string().nullable().optional(),
-  tier: z.string().nullable().optional(),
+  context_window: z.number().int().nullable().default(null),
+  input_cost_per_1m: z.number().nullable().default(null),
+  output_cost_per_1m: z.number().nullable().default(null),
+  capabilities: z.string().nullable().default(null),
+  tier: z.string().nullable().default(null),
   fetched_at: z.number().int(),
   expires_at: z.number().int(),
 });
@@ -73,9 +73,9 @@ const ModelCatalogSchema = z.object({
 const SecurityEventSchema = z.object({
   id: z.string(),
   event_type: z.string(),
-  group_id: z.string().nullable().optional(),
+  group_id: z.string().nullable().default(null),
   severity: z.string(),
-  details: z.string().nullable().optional(),
+  details: z.string().nullable().default(null),
   blocked: z.number().int().default(1),
 });
 
@@ -88,7 +88,7 @@ const IpcMessageSchema = z.object({
 
 const SnapshotSchema = z.object({
   id: z.string(),
-  description: z.string().nullable().optional(),
+  description: z.string().nullable().default(null),
   paths: z.string(),
   storage_dir: z.string(),
   expires_at: z.number().int(),
