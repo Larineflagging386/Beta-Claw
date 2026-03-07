@@ -13,11 +13,21 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/cli/index.ts",
+    "start": "tsx src/cli/index.ts start --foreground",
+    "start:bg": "tsx src/cli/index.ts start",
+    "stop": "tsx src/cli/index.ts stop",
+    "restart": "tsx src/cli/index.ts restart --foreground",
+    "status": "tsx src/cli/index.ts status",
+    "chat": "tsx src/cli/index.ts chat",
+    "setup": "tsx src/cli/index.ts setup",
+    "doctor": "tsx src/cli/index.ts doctor",
+    "benchmark": "tsx src/cli/index.ts benchmark",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
     "format": "prettier --write .",
-    "start": "node dist/cli/index.js"
+    "prod": "node dist/cli/index.js",
+    "prod:start": "node dist/cli/index.js start --foreground"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "latest",

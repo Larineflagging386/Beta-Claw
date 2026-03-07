@@ -1,6 +1,7 @@
+#!/usr/bin/env node
 import { Command } from 'commander';
 import { chatCommand } from './commands/chat.js';
-import { daemonCommand } from './commands/daemon.js';
+import { startCommand, stopCommand, restartCommand, statusCommand } from './commands/daemon.js';
 import { skillsCommand } from './commands/skills.js';
 import { providerCommand } from './commands/provider.js';
 import { memoryCommand } from './commands/memory.js';
@@ -20,7 +21,10 @@ program
   .version('2.0.0');
 
 program.addCommand(chatCommand);
-program.addCommand(daemonCommand);
+program.addCommand(startCommand);
+program.addCommand(stopCommand);
+program.addCommand(restartCommand);
+program.addCommand(statusCommand);
 program.addCommand(skillsCommand);
 program.addCommand(providerCommand);
 program.addCommand(memoryCommand);

@@ -10,14 +10,17 @@ import { setupCommand } from '../../src/cli/commands/setup.js';
 import { doctorCommand } from '../../src/cli/commands/doctor.js';
 import { benchmarkCommand } from '../../src/cli/commands/benchmark.js';
 import { chatCommand } from '../../src/cli/commands/chat.js';
-import { daemonCommand } from '../../src/cli/commands/daemon.js';
+import { startCommand, stopCommand, restartCommand, statusCommand } from '../../src/cli/commands/daemon.js';
 import { exportCommand } from '../../src/cli/commands/export.js';
 
 function buildProgram(): Command {
   const program = new Command();
   program.name('microclaw').exitOverride();
   program.addCommand(chatCommand);
-  program.addCommand(daemonCommand);
+  program.addCommand(startCommand);
+  program.addCommand(stopCommand);
+  program.addCommand(restartCommand);
+  program.addCommand(statusCommand);
   program.addCommand(skillsCommand);
   program.addCommand(providerCommand);
   program.addCommand(memoryCommand);
@@ -32,11 +35,14 @@ function buildProgram(): Command {
 }
 
 describe('CLI command registration', () => {
-  it('registers all 12 top-level commands', () => {
+  it('registers all 15 top-level commands', () => {
     const program = buildProgram();
     const names = program.commands.map((c) => c.name());
     expect(names).toContain('chat');
     expect(names).toContain('start');
+    expect(names).toContain('stop');
+    expect(names).toContain('restart');
+    expect(names).toContain('status');
     expect(names).toContain('skills');
     expect(names).toContain('provider');
     expect(names).toContain('memory');
@@ -47,7 +53,7 @@ describe('CLI command registration', () => {
     expect(names).toContain('doctor');
     expect(names).toContain('benchmark');
     expect(names).toContain('export');
-    expect(names.length).toBe(12);
+    expect(names.length).toBe(15);
   });
 
   it('each command is a Commander instance', () => {
@@ -55,7 +61,8 @@ describe('CLI command registration', () => {
       skillsCommand, providerCommand, memoryCommand,
       vaultCommand, rollbackCommand, logsCommand,
       setupCommand, doctorCommand, benchmarkCommand,
-      chatCommand, daemonCommand, exportCommand,
+      chatCommand, startCommand, stopCommand, restartCommand,
+      statusCommand, exportCommand,
     ];
     for (const cmd of commands) {
       expect(cmd).toBeInstanceOf(Command);
@@ -232,10 +239,38 @@ describe('benchmark command', () => {
   });
 });
 
+describe('daemon commands', () => {
+  it('start command has correct name and --foreground option', () => {
+    expect(startCommand.name()).toBe('start');
+    const opts = startCommand.options.map((o) => o.long);
+    expect(opts).toContain('--foreground');
+  });
+
+  it('stop command has correct name', () => {
+    expect(stopCommand.name()).toBe('stop');
+    expect(stopCommand.description()).toMatch(/shutdown|stop/i);
+  });
+
+  it('restart command has correct name and --foreground option', () => {
+    expect(restartCommand.name()).toBe('restart');
+    const opts = restartCommand.options.map((o) => o.long);
+    expect(opts).toContain('--foreground');
+  });
+
+  it('status command has correct name', () => {
+    expect(statusCommand.name()).toBe('status');
+    expect(statusCommand.description()).toMatch(/health|status/i);
+  });
+});
+
 describe('help text generation', () => {
   it('program help includes all command names', () => {
     const program = buildProgram();
     const help = program.helpInformation();
+    expect(help).toContain('start');
+    expect(help).toContain('stop');
+    expect(help).toContain('restart');
+    expect(help).toContain('status');
     expect(help).toContain('skills');
     expect(help).toContain('provider');
     expect(help).toContain('memory');
