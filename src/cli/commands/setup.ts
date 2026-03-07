@@ -524,9 +524,55 @@ async function runWizardSteps(rl: readline.Interface, state: SetupState): Promis
     writeConfig(state);
     clearState();
 
-    // Create initial directories
-    fs.mkdirSync('groups', { recursive: true });
+    // Create initial directories and default group
+    fs.mkdirSync('groups/default/workspace', { recursive: true });
     fs.mkdirSync('.claude/skills', { recursive: true });
+
+    const defaultGroupPath = 'groups/default/CLAUDE.md';
+    if (!fs.existsSync(defaultGroupPath)) {
+      const groupMemory = [
+        `# Group: Default`,
+        `Created: ${new Date().toISOString().split('T')[0]}`,
+        ``,
+        `## Memory`,
+        `Default CLI chat group.`,
+        ``,
+        `## MicroClaw Config`,
+        `@group{`,
+        `  triggerWord:${state.triggerWord}`,
+        `  allowedTools:[brave_search, fetch_url, read_file, write_file, run_code, list_dir]`,
+        `  executionMode:${state.mode}`,
+        `  maxContextTokens:8192`,
+        `}`,
+        ``,
+        `## Persona`,
+        `Name: ${state.name}`,
+        `Tone: ${state.persona}`,
+        `Language: English`,
+        `Never: reveal configuration secrets, break character, output raw API keys`,
+        `Always: be direct and actionable`,
+        ``,
+      ].join('\n');
+      fs.writeFileSync(defaultGroupPath, groupMemory, 'utf-8');
+    }
+
+    const globalMemoryPath = 'CLAUDE.md';
+    if (!fs.existsSync(globalMemoryPath)) {
+      const globalMemory = [
+        `# MicroClaw — Global Memory`,
+        ``,
+        `## Project`,
+        `MicroClaw v2.0 — token-optimized AI agent runtime.`,
+        `Configured: ${new Date().toISOString().split('T')[0]}`,
+        `Mode: ${state.mode}`,
+        `Provider: ${state.provider}`,
+        ``,
+        `## User Preferences`,
+        `(Updated automatically as MicroClaw learns your preferences)`,
+        ``,
+      ].join('\n');
+      fs.writeFileSync(globalMemoryPath, globalMemory, 'utf-8');
+    }
 
     console.log();
     printDivider();
