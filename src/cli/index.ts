@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { Command } from 'commander';
 import { chatCommand } from './commands/chat.js';
 import { startCommand, stopCommand, restartCommand, statusCommand } from './commands/daemon.js';

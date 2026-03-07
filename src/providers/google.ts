@@ -10,29 +10,62 @@ import type {
 } from './interface.js';
 
 const GEMINI_MODELS = [
+  // --- Gemini 3.x series (latest) ---
   {
-    id: 'gemini-2.0-flash',
-    name: 'Gemini 2.0 Flash',
+    id: 'gemini-3.1-pro-preview',
+    name: 'Gemini 3.1 Pro Preview',
     contextWindow: 1_048_576,
-    inputCostPer1M: 0.1,
-    outputCostPer1M: 0.4,
-    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'system_message'],
-  },
-  {
-    id: 'gemini-1.5-pro',
-    name: 'Gemini 1.5 Pro',
-    contextWindow: 2_097_152,
+    maxOutputTokens: 65_536,
     inputCostPer1M: 1.25,
-    outputCostPer1M: 5.0,
-    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'system_message'],
+    outputCostPer1M: 10.0,
+    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'structured_output', 'system_message', 'thinking', 'caching', 'code_execution', 'search_grounding'],
   },
   {
-    id: 'gemini-1.5-flash',
-    name: 'Gemini 1.5 Flash',
+    id: 'gemini-3-flash-preview',
+    name: 'Gemini 3 Flash Preview',
     contextWindow: 1_048_576,
+    maxOutputTokens: 65_536,
+    inputCostPer1M: 0.15,
+    outputCostPer1M: 0.60,
+    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'structured_output', 'system_message', 'thinking', 'caching', 'code_execution', 'computer_use', 'search_grounding'],
+  },
+  {
+    id: 'gemini-3.1-flash-lite-preview',
+    name: 'Gemini 3.1 Flash-Lite Preview',
+    contextWindow: 1_048_576,
+    maxOutputTokens: 65_536,
     inputCostPer1M: 0.075,
-    outputCostPer1M: 0.3,
-    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'system_message'],
+    outputCostPer1M: 0.30,
+    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'structured_output', 'system_message', 'thinking', 'caching', 'code_execution', 'search_grounding'],
+  },
+
+  // --- Gemini 2.5 series ---
+  {
+    id: 'gemini-2.5-pro',
+    name: 'Gemini 2.5 Pro',
+    contextWindow: 1_048_576,
+    maxOutputTokens: 65_536,
+    inputCostPer1M: 1.25,
+    outputCostPer1M: 10.0,
+    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'structured_output', 'system_message', 'thinking', 'caching', 'code_execution', 'search_grounding'],
+  },
+  {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    contextWindow: 1_048_576,
+    maxOutputTokens: 65_536,
+    inputCostPer1M: 0.15,
+    outputCostPer1M: 0.60,
+    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'structured_output', 'system_message', 'thinking', 'caching', 'code_execution', 'search_grounding'],
+  },
+  {
+    id: 'gemini-2.5-flash-lite',
+    name: 'Gemini 2.5 Flash-Lite',
+    contextWindow: 1_048_576,
+    maxOutputTokens: 65_536,
+    inputCostPer1M: 0.075,
+    outputCostPer1M: 0.30,
+    capabilities: ['streaming', 'function_calling', 'vision', 'json_mode', 'structured_output', 'system_message', 'caching'],
   },
 ];
 
@@ -214,6 +247,7 @@ class GoogleAdapter implements IProviderAdapter {
       'function_calling',
       'vision',
       'json_mode',
+      'structured_output',
       'system_message',
     ]);
     return supported.has(feature);

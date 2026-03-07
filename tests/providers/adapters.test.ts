@@ -80,7 +80,7 @@ describe('GoogleAdapter', () => {
     expect(adapter.supportsFeature('vision')).toBe(true);
     expect(adapter.supportsFeature('json_mode')).toBe(true);
     expect(adapter.supportsFeature('prompt_caching')).toBe(false);
-    expect(adapter.supportsFeature('structured_output')).toBe(false);
+    expect(adapter.supportsFeature('structured_output')).toBe(true);
   });
 
   it('returns reasonable cost estimate', () => {
@@ -93,10 +93,11 @@ describe('GoogleAdapter', () => {
   it('has expected static models', async () => {
     const catalog = await adapter.fetchAvailableModels();
     expect(catalog.providerID).toBe('google');
-    expect(catalog.models.length).toBe(3);
-    expect(catalog.models.some((m) => m.id === 'gemini-2.0-flash')).toBe(true);
-    expect(catalog.models.some((m) => m.id === 'gemini-1.5-pro')).toBe(true);
-    expect(catalog.models.some((m) => m.id === 'gemini-1.5-flash')).toBe(true);
+    expect(catalog.models.length).toBe(6);
+    expect(catalog.models.some((m) => m.id === 'gemini-3.1-pro-preview')).toBe(true);
+    expect(catalog.models.some((m) => m.id === 'gemini-3-flash-preview')).toBe(true);
+    expect(catalog.models.some((m) => m.id === 'gemini-2.5-pro')).toBe(true);
+    expect(catalog.models.some((m) => m.id === 'gemini-2.5-flash')).toBe(true);
   });
 
   it('models have large context windows', async () => {
