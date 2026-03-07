@@ -94,15 +94,24 @@ const SnapshotSchema = z.object({
   expires_at: z.number().int(),
 });
 
-type Message = z.infer<typeof MessageSchema>;
-type Session = z.infer<typeof SessionSchema>;
-type ToolCacheEntry = z.infer<typeof ToolCacheSchema>;
-type ScheduledTask = z.infer<typeof ScheduledTaskSchema>;
-type Group = z.infer<typeof GroupSchema>;
-type ModelCatalogEntry = z.infer<typeof ModelCatalogSchema>;
-type SecurityEvent = z.infer<typeof SecurityEventSchema>;
-type IpcMessage = z.infer<typeof IpcMessageSchema>;
-type Snapshot = z.infer<typeof SnapshotSchema>;
+type Message = z.output<typeof MessageSchema>;
+type MessageInput = z.input<typeof MessageSchema>;
+type Session = z.output<typeof SessionSchema>;
+type SessionInput = z.input<typeof SessionSchema>;
+type ToolCacheEntry = z.output<typeof ToolCacheSchema>;
+type ToolCacheInput = z.input<typeof ToolCacheSchema>;
+type ScheduledTask = z.output<typeof ScheduledTaskSchema>;
+type ScheduledTaskInput = z.input<typeof ScheduledTaskSchema>;
+type Group = z.output<typeof GroupSchema>;
+type GroupInput = z.input<typeof GroupSchema>;
+type ModelCatalogEntry = z.output<typeof ModelCatalogSchema>;
+type ModelCatalogInput = z.input<typeof ModelCatalogSchema>;
+type SecurityEvent = z.output<typeof SecurityEventSchema>;
+type SecurityEventInput = z.input<typeof SecurityEventSchema>;
+type IpcMessage = z.output<typeof IpcMessageSchema>;
+type IpcMessageInput = z.input<typeof IpcMessageSchema>;
+type Snapshot = z.output<typeof SnapshotSchema>;
+type SnapshotInput = z.input<typeof SnapshotSchema>;
 
 type ResourceProfile = 'micro' | 'lite' | 'standard' | 'full';
 
@@ -254,7 +263,7 @@ class MicroClawDB {
 
   // --- Messages ---
 
-  insertMessage(msg: Message): void {
+  insertMessage(msg: MessageInput): void {
     const validated = MessageSchema.parse(msg);
     this.db
       .prepare(
@@ -287,7 +296,7 @@ class MicroClawDB {
 
   // --- Sessions ---
 
-  insertSession(session: Session): void {
+  insertSession(session: SessionInput): void {
     const validated = SessionSchema.parse(session);
     this.db
       .prepare(
@@ -326,7 +335,7 @@ class MicroClawDB {
     return row;
   }
 
-  insertToolCacheEntry(entry: ToolCacheEntry): void {
+  insertToolCacheEntry(entry: ToolCacheInput): void {
     const validated = ToolCacheSchema.parse(entry);
     this.db
       .prepare(
@@ -344,7 +353,7 @@ class MicroClawDB {
 
   // --- Scheduled Tasks ---
 
-  insertScheduledTask(task: ScheduledTask): void {
+  insertScheduledTask(task: ScheduledTaskInput): void {
     const validated = ScheduledTaskSchema.parse(task);
     this.db
       .prepare(
@@ -368,7 +377,7 @@ class MicroClawDB {
 
   // --- Groups ---
 
-  insertGroup(group: Group): void {
+  insertGroup(group: GroupInput): void {
     const validated = GroupSchema.parse(group);
     this.db
       .prepare(
@@ -392,7 +401,7 @@ class MicroClawDB {
 
   // --- Model Catalog ---
 
-  upsertModelCatalogEntry(entry: ModelCatalogEntry): void {
+  upsertModelCatalogEntry(entry: ModelCatalogInput): void {
     const validated = ModelCatalogSchema.parse(entry);
     this.db
       .prepare(
@@ -422,7 +431,7 @@ class MicroClawDB {
 
   // --- Security Events ---
 
-  insertSecurityEvent(event: SecurityEvent): void {
+  insertSecurityEvent(event: SecurityEventInput): void {
     const validated = SecurityEventSchema.parse(event);
     this.db
       .prepare(
@@ -440,7 +449,7 @@ class MicroClawDB {
 
   // --- IPC Messages ---
 
-  insertIpcMessage(msg: IpcMessage): void {
+  insertIpcMessage(msg: IpcMessageInput): void {
     const validated = IpcMessageSchema.parse(msg);
     this.db
       .prepare(
@@ -462,7 +471,7 @@ class MicroClawDB {
 
   // --- Snapshots ---
 
-  insertSnapshot(snapshot: Snapshot): void {
+  insertSnapshot(snapshot: SnapshotInput): void {
     const validated = SnapshotSchema.parse(snapshot);
     this.db
       .prepare(
@@ -560,14 +569,23 @@ class MicroClawDB {
 export { MicroClawDB };
 export type {
   Message,
+  MessageInput,
   Session,
+  SessionInput,
   ToolCacheEntry,
+  ToolCacheInput,
   ScheduledTask,
+  ScheduledTaskInput,
   Group,
+  GroupInput,
   ModelCatalogEntry,
+  ModelCatalogInput,
   SecurityEvent,
+  SecurityEventInput,
   IpcMessage,
+  IpcMessageInput,
   Snapshot,
+  SnapshotInput,
   ResourceProfile,
 };
 export {
