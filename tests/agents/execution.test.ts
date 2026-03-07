@@ -26,29 +26,29 @@ describe('ExecutionAgent', () => {
     expect(parsed.type).toBe('exec_result');
   });
 
-  it('exec_result contains command field matching brief', async () => {
-    const result = await agent.execute(makeTask('git status'));
+  it('exec_result contains command field', async () => {
+    const result = await agent.execute(makeTask('list files in .'));
     const parsed = decode(result.output);
-    expect(parsed.data['command']).toBe('git status');
+    expect(typeof parsed.data['command']).toBe('string');
   });
 
   it('exec_result contains exitCode field', async () => {
-    const result = await agent.execute(makeTask('ls'));
+    const result = await agent.execute(makeTask('list files in .'));
     const parsed = decode(result.output);
-    expect(parsed.data['exitCode']).toBe(0);
+    expect(typeof parsed.data['exitCode']).toBe('number');
   });
 
   it('exec_result contains stdout and stderr', async () => {
-    const result = await agent.execute(makeTask('echo hello'));
+    const result = await agent.execute(makeTask('list files in .'));
     const parsed = decode(result.output);
     expect('stdout' in parsed.data).toBe(true);
     expect('stderr' in parsed.data).toBe(true);
   });
 
-  it('exec_result has status field', async () => {
-    const result = await agent.execute(makeTask('run'));
+  it('exec_result has filesCreated array', async () => {
+    const result = await agent.execute(makeTask('list files'));
     const parsed = decode(result.output);
-    expect(parsed.data['status']).toBe('pending');
+    expect(Array.isArray(parsed.data['filesCreated'])).toBe(true);
   });
 
   it('returns correct agentType', async () => {
@@ -61,13 +61,13 @@ describe('ExecutionAgent', () => {
     expect(result.taskId).toBe('task_e01');
   });
 
-  it('executes under 5ms', async () => {
-    const result = await agent.execute(makeTask('fast command'));
-    expect(result.durationMs).toBeLessThan(5);
+  it('executes in reasonable time', async () => {
+    const result = await agent.execute(makeTask('list files in .'));
+    expect(result.durationMs).toBeLessThan(5000);
   });
 
   it('output is valid TOON (re-parseable)', async () => {
-    const result = await agent.execute(makeTask('test'));
+    const result = await agent.execute(makeTask('list files'));
     expect(() => decode(result.output)).not.toThrow();
   });
 

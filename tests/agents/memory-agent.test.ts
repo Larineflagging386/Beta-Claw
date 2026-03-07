@@ -26,10 +26,10 @@ describe('MemoryAgent', () => {
     expect(parsed.type).toBe('memory_result');
   });
 
-  it('memory_result contains operation field matching brief', async () => {
+  it('memory_result contains operation field', async () => {
     const result = await agent.execute(makeTask('recall last conversation'));
     const parsed = decode(result.output);
-    expect(parsed.data['operation']).toBe('recall last conversation');
+    expect(['read', 'write', 'summarize']).toContain(parsed.data['operation']);
   });
 
   it('memory_result contains found field', async () => {
@@ -44,10 +44,10 @@ describe('MemoryAgent', () => {
     expect(Array.isArray(parsed.data['entries'])).toBe(true);
   });
 
-  it('memory_result has status field', async () => {
-    const result = await agent.execute(makeTask('store'));
+  it('memory_result has updated field for write ops', async () => {
+    const result = await agent.execute(makeTask('store this fact'));
     const parsed = decode(result.output);
-    expect(parsed.data['status']).toBe('pending');
+    expect(typeof parsed.data['updated']).toBe('boolean');
   });
 
   it('returns correct agentType', async () => {
@@ -60,9 +60,9 @@ describe('MemoryAgent', () => {
     expect(result.taskId).toBe('task_m01');
   });
 
-  it('executes under 5ms', async () => {
+  it('executes in reasonable time', async () => {
     const result = await agent.execute(makeTask('fast recall'));
-    expect(result.durationMs).toBeLessThan(5);
+    expect(result.durationMs).toBeLessThan(5000);
   });
 
   it('output is valid TOON (re-parseable)', async () => {

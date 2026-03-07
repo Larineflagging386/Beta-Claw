@@ -38,10 +38,10 @@ describe('ResponseComposer', () => {
     expect(composer.type).toBe('composer');
   });
 
-  it('execute returns valid TOON @response block', async () => {
+  it('execute returns valid TOON block', async () => {
     const result = await composer.execute(makeTask('compose output'));
     const parsed = decode(result.output);
-    expect(parsed.type).toBe('response');
+    expect(parsed.type).toBe('composer_result');
   });
 
   it('execute returns correct agentType', async () => {
@@ -93,7 +93,7 @@ describe('ResponseComposer', () => {
     expect(() => decode(output)).not.toThrow();
   });
 
-  it('execute completes under 5ms', async () => {
+  it('execute completes under 5ms without provider', async () => {
     const result = await composer.execute(makeTask('fast'));
     expect(result.durationMs).toBeLessThan(5);
   });

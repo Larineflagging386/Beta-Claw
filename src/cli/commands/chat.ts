@@ -1,11 +1,29 @@
 import { Command } from 'commander';
 import readline from 'node:readline';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
 import dotenv from 'dotenv';
 import { MicroClawDB } from '../../db.js';
 import { ProviderRegistry } from '../../core/provider-registry.js';
 import { ModelCatalog } from '../../core/model-catalog.js';
 import { estimateComplexity } from '../../core/complexity-estimator.js';
 import { selectModel } from '../../core/model-selector.js';
+import { getConfig } from '../../core/config-loader.js';
+import { PromptLoader } from '../../core/prompt-loader.js';
+import { SkillWatcher } from '../../core/skill-watcher.js';
+import { Guardrails } from '../../security/guardrails.js';
+import { EpisodicMemory } from '../../memory/episodic.js';
+import { WorkingMemory } from '../../memory/working-memory.js';
+import { Compactor } from '../../memory/compactor.js';
+import { Retriever } from '../../memory/retriever.js';
+import { PlannerAgent } from '../../agents/planner.js';
+import { ResearchAgent } from '../../agents/research.js';
+import { ExecutionAgent } from '../../agents/execution.js';
+import { MemoryAgent } from '../../agents/memory.js';
+import { ComposerAgent } from '../../agents/composer.js';
+import { executeDAG } from '../../execution/dag-executor.js';
+import type { AgentNode } from '../../execution/dag-executor.js';
+import { encode, parseAll } from '../../core/toon-serializer.js';
 import { OpenRouterAdapter } from '../../providers/openrouter.js';
 import { AnthropicAdapter } from '../../providers/anthropic.js';
 import { OpenAIAdapter } from '../../providers/openai.js';
@@ -83,9 +101,59 @@ function registerAvailableProviders(registry: ProviderRegistry): string[] {
   return registered;
 }
 
+function buildDAGNodes(planBlock: { type: string; data: Record<string, unknown> }): AgentNode[] {
+  const rawSteps = planBlock.data['steps'];
+  if (!Array.isArray(rawSteps)) return [];
+
+  const nodes: AgentNode[] = [];
+  const nodeIds: string[] = [];
+
+  for (let i = 0; i < rawSteps.length; i++) {
+    const step = rawSteps[i];
+    if (typeof step !== 'object' || step === null) continue;
+    const stepObj = step as Record<string, unknown>;
+    const id = String(stepObj['id'] ?? `step_${i}`);
+    const agentType = String(stepObj['agent'] ?? stepObj['agentType'] ?? 'research');
+    const brief = String(stepObj['brief'] ?? planBlock.data['brief'] ?? '');
+    const rawDeps = stepObj['dependsOn'];
+    const dependsOn = Array.isArray(rawDeps) ? rawDeps.map(String) : [];
+
+    nodeIds.push(id);
+    nodes.push({ id, agentType, brief, dependsOn });
+  }
+
+  if (nodes.length > 0 && !nodes.some(n => n.agentType === 'composer')) {
+    nodes.push({
+      id: 'composer',
+      agentType: 'composer',
+      brief: String(planBlock.data['brief'] ?? ''),
+      dependsOn: nodeIds,
+    });
+  }
+
+  return nodes;
+}
+
+function extractHumanResponse(toonOrText: string): string {
+  try {
+    const blocks = parseAll(toonOrText);
+    for (const block of blocks) {
+      const d = block.data;
+      if (typeof d['response'] === 'string' && d['response']) return d['response'];
+      if (typeof d['summary'] === 'string' && d['summary']) return d['summary'];
+      if (typeof d['content'] === 'string' && d['content']) return d['content'];
+      if (typeof d['stdout'] === 'string' && d['stdout']) return d['stdout'];
+    }
+  } catch {
+    // not TOON
+  }
+  return toonOrText;
+}
+
 async function startChat(options: ChatOptions): Promise<void> {
   loadEnv();
 
+  const config = getConfig();
   const db = new MicroClawDB('microclaw.db');
   const registry = new ProviderRegistry();
   const registered = registerAvailableProviders(registry);
@@ -121,6 +189,11 @@ async function startChat(options: ChatOptions): Promise<void> {
   const modelCount = catalog.getAllModels().length;
   console.log(`Models loaded: ${modelCount}`);
 
+  ComposerAgent.setRegistry(registry);
+  ComposerAgent.setCatalog(catalog);
+  ResearchAgent.setDB(db);
+  MemoryAgent.setDB(db);
+
   const groupId = options.group ?? 'default';
 
   if (!db.getGroup(groupId)) {
@@ -128,8 +201,8 @@ async function startChat(options: ChatOptions): Promise<void> {
       id: groupId,
       channel: 'cli',
       name: groupId === 'default' ? 'CLI Chat' : groupId,
-      trigger_word: '@Andy',
-      execution_mode: 'isolated',
+      trigger_word: config.triggerWord,
+      execution_mode: config.executionMode,
     });
   }
 
@@ -142,7 +215,38 @@ async function startChat(options: ChatOptions): Promise<void> {
 
   const conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
+  const guardrails = new Guardrails(db);
+  const promptLoader = new PromptLoader();
+  const episodic = new EpisodicMemory();
+  const retriever = new Retriever(db);
+  const compactor = new Compactor(db);
+  const workingMemory = new WorkingMemory({
+    profile: config.profile,
+    maxTokens: config.maxWorkingTokens,
+    summarizeThreshold: config.summarizeThreshold,
+  });
+
+  let systemPrompt: string;
+  try {
+    systemPrompt = await promptLoader.render('system/agent-base.toon', {
+      PERSONA_NAME: config.persona,
+      PERSONA_STYLE: config.personaStyle,
+    });
+  } catch {
+    systemPrompt = `You are ${config.persona}, style: ${config.personaStyle}. You are an AI assistant.`;
+  }
+  workingMemory.setSystemTokens(workingMemory.estimateTokens(systemPrompt));
+
+  const groupContext = await episodic.read(groupId);
+  if (groupContext) {
+    workingMemory.setSummaryTokens(workingMemory.estimateTokens(groupContext.slice(0, 500)));
+  }
+
+  const skillWatcher = new SkillWatcher('.claude/skills');
+  skillWatcher.watch();
+
   const defaultProvider = registry.getDefault();
+  console.log(`Persona: ${config.persona} (${config.personaStyle})`);
   console.log(`Default provider: ${defaultProvider?.name ?? 'auto-select'}`);
   console.log('Type /quit to exit, /status for system info\n');
 
@@ -155,100 +259,226 @@ async function startChat(options: ChatOptions): Promise<void> {
   rl.prompt();
 
   rl.on('line', async (line: string) => {
-    const input = line.trim();
-    if (!input) {
+    const userInput = line.trim();
+    if (!userInput) {
       rl.prompt();
       return;
     }
 
-    if (input === '/quit' || input === '/exit') {
+    if (userInput === '/quit' || userInput === '/exit') {
       console.log('\nGoodbye!');
+      skillWatcher.close();
       db.endSession(sessionId, 'Chat ended by user', '', conversationHistory.length);
       db.close();
       rl.close();
       return;
     }
 
-    if (input === '/status') {
+    if (userInput === '/status') {
       const models = catalog.getAllModels();
       const providers = registry.listIds();
+      const skills = skillWatcher.listSkills();
+      const budget = workingMemory.getBudget();
       console.log(`\n  Providers: ${providers.join(', ')}`);
       console.log(`  Models loaded: ${models.length}`);
       console.log(`  Group: ${groupId}`);
+      console.log(`  Persona: ${config.persona} (${config.personaStyle})`);
       console.log(`  Session: ${sessionId}`);
-      console.log(`  Messages: ${conversationHistory.length}\n`);
+      console.log(`  Messages: ${conversationHistory.length}`);
+      console.log(`  Skills: ${skills.length}`);
+      console.log(`  Memory: ${Math.round(budget.utilizationPercent)}% used (${budget.totalTokens}/${budget.maxTokens} tokens)\n`);
       rl.prompt();
       return;
     }
 
-    const complexity = estimateComplexity(input);
-    const selection = selectModel(catalog, complexity);
-
-    if (!selection) {
-      console.log('\nNo models available. Check your API key configuration.\n');
-      rl.prompt();
-      return;
+    // Skill command handler
+    if (userInput.startsWith('/')) {
+      const command = userInput.trim();
+      const skill = skillWatcher.getSkill(command);
+      if (skill) {
+        console.log(`\n[Skill] Running ${skill.name}...`);
+        for (const envVar of skill.requiredEnvVars ?? []) {
+          if (!process.env[envVar]) {
+            const ri = readline.createInterface({ input: process.stdin, output: process.stdout });
+            const value = await new Promise<string>(resolve => {
+              ri.question(`  ${skill.name} needs ${envVar}: `, answer => {
+                ri.close();
+                resolve(answer.trim());
+              });
+            });
+            process.env[envVar] = value;
+            fs.appendFileSync('.env', `\n${envVar}=${value}\n`);
+            console.log(`  Saved ${envVar} to .env`);
+          }
+        }
+        console.log(`[Skill] ${skill.description}`);
+        rl.prompt();
+        return;
+      } else {
+        console.log(`Unknown command: ${command}. Type /status for system info.`);
+        rl.prompt();
+        return;
+      }
     }
-
-    const provider = registry.get(selection.model.provider_id);
-    if (!provider) {
-      console.log(`\nProvider ${selection.model.provider_id} not available.\n`);
-      rl.prompt();
-      return;
-    }
-
-    const modelId = options.model ?? selection.model.model_id;
-
-    db.insertMessage({
-      id: `msg_${uuidv4()}`,
-      group_id: groupId,
-      sender_id: 'user',
-      content: input,
-      timestamp: Math.floor(Date.now() / 1000),
-      channel: 'cli',
-      processed: 0,
-    });
-
-    conversationHistory.push({ role: 'user', content: input });
 
     try {
-      process.stdout.write(`\nMC [${modelId}] > `);
+      // 1. GUARDRAILS INPUT
+      const inputResult = guardrails.processInput(userInput, groupId);
+      if (!inputResult.allowed) {
+        console.log(`\n[Blocked] ${inputResult.events[0]?.details ?? 'Input rejected'}\n`);
+        rl.prompt();
+        return;
+      }
+      const safeInput = inputResult.content;
 
-      let fullResponse = '';
-
-      try {
-        for await (const chunk of provider.stream({
-          model: modelId,
-          messages: conversationHistory,
-          maxTokens: 2048,
-        })) {
-          process.stdout.write(chunk.content);
-          fullResponse += chunk.content;
-          if (chunk.done) break;
+      // 2. WORKING MEMORY — add user message and check budget
+      workingMemory.addMessage('user', safeInput);
+      if (workingMemory.needsSummarization()) {
+        const msgs = workingMemory.getMessagesForSummarization();
+        if (msgs.length > 0) {
+          const summary = compactor.summarize(msgs.map(m => ({ role: m.role, content: m.content })));
+          workingMemory.applySummarization(summary, msgs.length);
+          const budget = workingMemory.getBudget();
+          console.log(`[Memory] Compacted ${msgs.length} messages. Context ${Math.round(budget.utilizationPercent)}% used.`);
         }
-      } catch {
-        const response = await provider.complete({
-          model: modelId,
-          messages: conversationHistory,
-          maxTokens: 2048,
-        });
-        fullResponse = response.content;
-        process.stdout.write(fullResponse);
       }
 
-      console.log('\n');
+      // 3. RAG RETRIEVAL
+      const ragResults = retriever.retrieve(safeInput, groupId, 3);
+      if (ragResults.length > 0) {
+        const ragContext = ragResults.map(r => r.content).join('\n---\n');
+        workingMemory.setRagTokens(workingMemory.estimateTokens(ragContext));
+      }
 
-      conversationHistory.push({ role: 'assistant', content: fullResponse });
+      // 4. RECORD USER MESSAGE IN DB
+      db.insertMessage({
+        id: `msg_${uuidv4()}`,
+        group_id: groupId,
+        sender_id: 'user',
+        content: safeInput,
+        timestamp: Math.floor(Date.now() / 1000),
+        channel: 'cli',
+        processed: 0,
+      });
+
+      conversationHistory.push({ role: 'user', content: safeInput });
+
+      // 5. PLAN THE TASK
+      const planner = new PlannerAgent();
+      const planResult = await planner.execute({
+        id: crypto.randomUUID(),
+        type: 'planner',
+        brief: safeInput,
+        groupId,
+        sessionId,
+      });
+
+      const planBlocks = parseAll(planResult.output);
+      const planBlock = planBlocks.find(b => b.type === 'plan');
+
+      // 6. EXECUTE THE DAG
+      const agentMap: Record<string, { execute: (task: { id: string; type: string; brief: string; groupId: string; sessionId: string }) => Promise<{ output: string }> }> = {
+        research: new ResearchAgent(),
+        execution: new ExecutionAgent(),
+        memory: new MemoryAgent(),
+        composer: new ComposerAgent(),
+      };
+
+      let agentResults: Map<string, string>;
+
+      if (planBlock?.data['steps'] && Array.isArray(planBlock.data['steps']) && (planBlock.data['steps'] as unknown[]).length > 0) {
+        const nodes = buildDAGNodes(planBlock);
+
+        if (nodes.length > 0) {
+          agentResults = await executeDAG(nodes, async (node) => {
+            const agent = agentMap[node.agentType];
+            if (!agent) return encode('error', { msg: `Unknown agent: ${node.agentType}` });
+
+            let brief = node.brief;
+            if (node.agentType === 'composer') {
+              brief = `User asked: ${safeInput}\nResearch: ${agentResults?.get(nodes.find(n => n.agentType === 'research')?.id ?? '') ?? ''}`;
+            }
+
+            const result = await agent.execute({
+              id: node.id,
+              type: node.agentType,
+              brief,
+              groupId,
+              sessionId,
+            });
+            return result.output;
+          });
+        } else {
+          agentResults = new Map();
+        }
+      } else {
+        agentResults = new Map();
+      }
+
+      // If no composer ran via DAG, run the simple research+compose cycle
+      if (!agentResults.has('composer')) {
+        const researchAgent = new ResearchAgent();
+        const composerAgent = new ComposerAgent();
+
+        const researchResult = await researchAgent.execute({
+          id: crypto.randomUUID(),
+          type: 'research',
+          brief: safeInput,
+          groupId,
+          sessionId,
+        });
+
+        const composeResult = await composerAgent.execute({
+          id: crypto.randomUUID(),
+          type: 'composer',
+          brief: `User asked: ${safeInput}\nResearch: ${researchResult.output}`,
+          groupId,
+          sessionId,
+        });
+        agentResults.set('composer', composeResult.output);
+      }
+
+      // 7. GET FINAL RESPONSE
+      const composerOutput = agentResults.get('composer') ?? '';
+      let finalResponse = extractHumanResponse(composerOutput);
+      if (!finalResponse) finalResponse = composerOutput;
+
+      // 8. GUARDRAILS OUTPUT
+      const outputResult = guardrails.processOutput(finalResponse, groupId);
+      const safeOutput = outputResult.content;
+
+      // 9. SELECT MODEL FOR DISPLAY
+      const complexity = estimateComplexity(safeInput);
+      const selectedModel = selectModel(catalog, complexity);
+
+      // 10. PRINT AND PERSIST
+      process.stdout.write(`\nMC [${options.model ?? selectedModel?.model.model_id ?? 'auto'}] > `);
+      console.log(safeOutput);
+      console.log('');
+
+      workingMemory.addMessage('assistant', safeOutput);
+      conversationHistory.push({ role: 'assistant', content: safeOutput });
 
       db.insertMessage({
         id: `msg_${uuidv4()}`,
         group_id: groupId,
         sender_id: 'assistant',
-        content: fullResponse,
+        content: safeOutput,
         timestamp: Math.floor(Date.now() / 1000),
         channel: 'cli',
         processed: 1,
       });
+
+      // 11. UPDATE EPISODIC MEMORY
+      const memAgent = new MemoryAgent();
+      await memAgent.execute({
+        id: crypto.randomUUID(),
+        type: 'memory',
+        brief: `SUMMARIZE and save this to memory: User said "${safeInput}". Assistant responded: "${safeOutput.slice(0, 200)}"`,
+        groupId,
+        sessionId,
+      });
+
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.log(`\nError: ${errorMsg}\n`);
@@ -258,6 +488,7 @@ async function startChat(options: ChatOptions): Promise<void> {
   });
 
   rl.on('close', () => {
+    skillWatcher.close();
     db.endSession(sessionId, 'Session closed', '', conversationHistory.length);
     db.close();
   });

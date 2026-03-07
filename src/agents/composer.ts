@@ -1,28 +1,176 @@
-import { encode, decode } from '../core/toon-serializer.js';
+import { encode, decode, parseAll } from '../core/toon-serializer.js';
+import { PromptLoader } from '../core/prompt-loader.js';
+import { getConfig } from '../core/config-loader.js';
+import { estimateComplexity } from '../core/complexity-estimator.js';
+import { selectModel } from '../core/model-selector.js';
+import type { ProviderRegistry } from '../core/provider-registry.js';
+import type { ModelCatalog } from '../core/model-catalog.js';
 import type { AgentTask, AgentResult, IAgent } from './types.js';
 import { AgentTaskSchema, AgentResultSchema } from './types.js';
 
-export class ResponseComposer implements IAgent {
+function extractSubAgentSummaries(brief: string): string {
+  const blocks = parseAll(brief);
+  const sections: string[] = [];
+
+  for (const block of blocks) {
+    const d = block.data;
+    if (typeof d['summary'] === 'string' && d['summary']) {
+      sections.push(d['summary']);
+    } else if (typeof d['content'] === 'string' && d['content']) {
+      sections.push(d['content']);
+    } else if (typeof d['stdout'] === 'string' && d['stdout']) {
+      sections.push(`Output:\n${d['stdout']}`);
+    } else if (typeof d['response'] === 'string' && d['response']) {
+      sections.push(d['response']);
+    }
+  }
+
+  return sections.length > 0 ? sections.join('\n\n') : brief;
+}
+
+export class ComposerAgent implements IAgent {
   readonly type = 'composer' as const;
+
+  private static _registry: ProviderRegistry | null = null;
+  private static _catalog: ModelCatalog | null = null;
+
+  static setRegistry(registry: ProviderRegistry): void {
+    ComposerAgent._registry = registry;
+  }
+
+  static setCatalog(catalog: ModelCatalog): void {
+    ComposerAgent._catalog = catalog;
+  }
 
   async execute(task: AgentTask): Promise<AgentResult> {
     const validated = AgentTaskSchema.parse(task);
     const start = performance.now();
+    const config = getConfig();
 
-    const composedOutput = encode('response', {
-      taskId: validated.id,
-      content: validated.brief,
-      sources: [] as string[],
-    } as Record<string, unknown>);
-    const durationMs = performance.now() - start;
+    let agentResults: string;
+    let userRequest: string;
 
-    return {
-      taskId: validated.id,
-      agentType: this.type,
-      output: composedOutput,
-      tokensUsed: Math.ceil(composedOutput.length / 4),
-      durationMs,
-    };
+    const userAskedMatch = /User asked:\s*(.*?)(?:\nResearch:|$)/s.exec(validated.brief);
+    if (userAskedMatch?.[1]) {
+      userRequest = userAskedMatch[1].trim();
+      agentResults = validated.brief.replace(/User asked:.*?\n/s, '');
+    } else {
+      userRequest = validated.brief;
+      agentResults = extractSubAgentSummaries(validated.brief);
+    }
+
+    const registry = ComposerAgent._registry;
+    const catalog = ComposerAgent._catalog;
+
+    if (!registry || !catalog || registry.size() === 0) {
+      const output = encode('composer_result', {
+        response: agentResults || validated.brief,
+        tokensUsed: 0,
+        model: 'none',
+      } as Record<string, unknown>);
+
+      return {
+        taskId: validated.id,
+        agentType: this.type,
+        output,
+        tokensUsed: Math.ceil(output.length / 4),
+        durationMs: performance.now() - start,
+      };
+    }
+
+    const promptLoader = new PromptLoader();
+    let composerPrompt: string;
+    try {
+      composerPrompt = await promptLoader.render('agents/composer.toon', {
+        PERSONA_NAME: config.persona,
+        PERSONA_STYLE: config.personaStyle,
+        AGENT_RESULTS: agentResults,
+        USER_REQUEST: userRequest,
+      });
+    } catch {
+      composerPrompt = `You are ${config.persona}. Style: ${config.personaStyle}.\n` +
+        `Synthesize these sub-agent results into a response:\n${agentResults}\n\n` +
+        `User's request: ${userRequest}`;
+    }
+
+    const complexity = estimateComplexity(userRequest);
+    const selection = selectModel(catalog, complexity);
+
+    if (!selection) {
+      const output = encode('composer_result', {
+        response: agentResults,
+        tokensUsed: 0,
+        model: 'none',
+      } as Record<string, unknown>);
+
+      return {
+        taskId: validated.id,
+        agentType: this.type,
+        output,
+        tokensUsed: Math.ceil(output.length / 4),
+        durationMs: performance.now() - start,
+      };
+    }
+
+    const provider = registry.get(selection.model.provider_id);
+    if (!provider) {
+      const output = encode('composer_result', {
+        response: agentResults,
+        tokensUsed: 0,
+        model: 'unavailable',
+      } as Record<string, unknown>);
+
+      return {
+        taskId: validated.id,
+        agentType: this.type,
+        output,
+        tokensUsed: Math.ceil(output.length / 4),
+        durationMs: performance.now() - start,
+      };
+    }
+
+    const modelId = selection.model.model_id;
+
+    try {
+      const response = await provider.complete({
+        model: modelId,
+        messages: [
+          { role: 'system', content: composerPrompt },
+          { role: 'user', content: userRequest },
+        ],
+        maxTokens: 2048,
+      });
+
+      const output = encode('composer_result', {
+        response: response.content,
+        tokensUsed: response.usage.totalTokens,
+        model: modelId,
+      } as Record<string, unknown>);
+
+      return {
+        taskId: validated.id,
+        agentType: this.type,
+        output,
+        tokensUsed: response.usage.totalTokens,
+        durationMs: performance.now() - start,
+      };
+    } catch (err) {
+      const fallback = agentResults || validated.brief;
+      const output = encode('composer_result', {
+        response: fallback,
+        tokensUsed: 0,
+        model: modelId,
+        error: err instanceof Error ? err.message : String(err),
+      } as Record<string, unknown>);
+
+      return {
+        taskId: validated.id,
+        agentType: this.type,
+        output,
+        tokensUsed: Math.ceil(output.length / 4),
+        durationMs: performance.now() - start,
+      };
+    }
   }
 
   async compose(results: AgentResult[], task: AgentTask): Promise<string> {
@@ -63,3 +211,5 @@ export class ResponseComposer implements IAgent {
     } as Record<string, unknown>);
   }
 }
+
+export { ComposerAgent as ResponseComposer };
