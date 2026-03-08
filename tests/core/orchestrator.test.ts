@@ -130,7 +130,7 @@ describe('Orchestrator', () => {
     db.insertGroup({
       id: 'grp_test',
       channel: 'mock-channel',
-      trigger_word: '@Andy',
+      trigger_word: '@rem',
       execution_mode: 'isolated',
     });
 

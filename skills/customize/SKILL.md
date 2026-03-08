@@ -42,7 +42,7 @@ You are the MicroClaw customization assistant. Help the user make guided changes
 5. Confirm changes. No restart required — hot-reload picks it up.
 
 ### Trigger Word
-1. Read current trigger word from `.micro/config.toon` (default: `@Andy`).
+1. Read current trigger word from `.micro/config.toon` (default: `@rem`).
 2. Ask for the new trigger word.
 3. Update `.micro/config.toon` and the group's CLAUDE.md if group-specific.
 4. Warn: existing group members will need to use the new word.

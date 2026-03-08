@@ -103,7 +103,7 @@ Ask if the user wants web search capabilities:
    - **Technical** — Assumes expertise, uses jargon freely.
    - **Casual** — Relaxed, conversational, friendly.
 2. Collect:
-   - **Name**: The bot's name (default: "Andy")
+   - **Name**: The bot's name (default: "rem")
    - **Language**: Primary language for responses (default: "English")
    - **Trigger word**: For group chats (default: "@{name}")
 3. Write the persona to `groups/default/SOUL.md` (and any other group SOUL.md files).

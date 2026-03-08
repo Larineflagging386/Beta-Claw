@@ -284,7 +284,7 @@ describe('MicroClawDB', () => {
       id: 'grp_001',
       channel: 'whatsapp',
       name: 'Test Group',
-      trigger_word: '@Andy',
+      trigger_word: '@rem',
       execution_mode: 'isolated',
     };
 
@@ -293,7 +293,7 @@ describe('MicroClawDB', () => {
       const retrieved = db.getGroup('grp_001');
       expect(retrieved).toBeDefined();
       expect(retrieved!.name).toBe('Test Group');
-      expect(retrieved!.trigger_word).toBe('@Andy');
+      expect(retrieved!.trigger_word).toBe('@rem');
     });
 
     it('lists all groups', () => {
@@ -499,7 +499,7 @@ describe('MicroClawDB', () => {
         db.insertGroup({
           id: 'grp_tx',
           channel: 'cli',
-          trigger_word: '@Andy',
+          trigger_word: '@rem',
           execution_mode: 'isolated',
         });
         db.insertMessage({
@@ -522,7 +522,7 @@ describe('MicroClawDB', () => {
           db.insertGroup({
             id: 'grp_fail',
             channel: 'cli',
-            trigger_word: '@Andy',
+            trigger_word: '@rem',
             execution_mode: 'isolated',
           });
           throw new Error('Simulated failure');

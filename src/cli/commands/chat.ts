@@ -83,7 +83,7 @@ async function startChat(options: ChatOptions): Promise<void> {
       const r = readline.createInterface({ input: process.stdin, output: process.stdout });
       r.question(`  ${q} [${def}]: `, a => { r.close(); resolve(a.trim() || def); });
     });
-    const name = await ask('Assistant name', 'Andy');
+    const name = await ask('Assistant name', 'rem');
     const style = await ask('Personality style', 'direct and concise');
     const lang  = await ask('Primary language', 'English');
     fs.writeFileSync(soulPath,
@@ -98,7 +98,7 @@ async function startChat(options: ChatOptions): Promise<void> {
       id: groupId,
       channel: 'cli',
       name: groupId === 'default' ? 'CLI Chat' : groupId,
-      trigger_word: process.env['TRIGGER_WORD'] ?? '@Andy',
+      trigger_word: process.env['TRIGGER_WORD'] ?? '@rem',
       execution_mode: 'isolated',
     });
   }

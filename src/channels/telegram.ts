@@ -24,7 +24,7 @@ export class TelegramChannel implements IChannel {
 
     this.bot.on('message:text', async (ctx) => {
       const text = ctx.message.text ?? '';
-      const trigger = process.env['TRIGGER_WORD'] ?? '@Andy';
+      const trigger = process.env['TRIGGER_WORD'] ?? '@rem';
 
       const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
       if (isGroup && !text.includes(trigger)) return;

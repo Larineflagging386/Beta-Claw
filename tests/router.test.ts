@@ -35,29 +35,29 @@ describe('MessageRouter', () => {
     router = new MessageRouter();
     groups = new Map();
     groups.set('group-1', {
-      triggerWord: '@Andy',
+      triggerWord: '@rem',
       allowedTools: ['search', 'code'],
       executionMode: 'isolated',
     });
   });
 
   it('shouldRespond returns true when trigger word is present', () => {
-    const msg = makeMessage({ content: 'Hey @Andy what is the weather?' });
-    expect(router.shouldRespond(msg, '@Andy')).toBe(true);
+    const msg = makeMessage({ content: 'Hey @rem what is the weather?' });
+    expect(router.shouldRespond(msg, '@rem')).toBe(true);
   });
 
   it('shouldRespond is case-insensitive', () => {
-    const msg = makeMessage({ content: 'hey @andy help me' });
-    expect(router.shouldRespond(msg, '@Andy')).toBe(true);
+    const msg = makeMessage({ content: 'hey @rem help me' });
+    expect(router.shouldRespond(msg, '@rem')).toBe(true);
   });
 
   it('shouldRespond returns false when trigger word is absent', () => {
     const msg = makeMessage({ content: 'just a regular message' });
-    expect(router.shouldRespond(msg, '@Andy')).toBe(false);
+    expect(router.shouldRespond(msg, '@rem')).toBe(false);
   });
 
   it('route returns shouldProcess:true with direct_mention priority when trigger is at start', () => {
-    const msg = makeMessage({ content: '@Andy tell me a joke' });
+    const msg = makeMessage({ content: '@rem tell me a joke' });
     const result = router.route(msg, groups);
     expect(result.shouldProcess).toBe(true);
     expect(result.priority).toBe(10);
@@ -66,7 +66,7 @@ describe('MessageRouter', () => {
   });
 
   it('route returns shouldProcess:true with lower priority when trigger is mid-message', () => {
-    const msg = makeMessage({ content: 'Hey @Andy how are you?' });
+    const msg = makeMessage({ content: 'Hey @rem how are you?' });
     const result = router.route(msg, groups);
     expect(result.shouldProcess).toBe(true);
     expect(result.priority).toBe(5);
@@ -81,7 +81,7 @@ describe('MessageRouter', () => {
   });
 
   it('route returns shouldProcess:false when group is not configured', () => {
-    const msg = makeMessage({ groupId: 'unknown-group', content: '@Andy hi' });
+    const msg = makeMessage({ groupId: 'unknown-group', content: '@rem hi' });
     const result = router.route(msg, groups);
     expect(result.shouldProcess).toBe(false);
     expect(result.reason).toBe('no_group_config');

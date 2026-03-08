@@ -63,7 +63,7 @@ const GroupSchema = z.object({
   id: z.string(),
   channel: z.string(),
   name: z.string().nullable().default(null),
-  trigger_word: z.string().default('@Andy'),
+  trigger_word: z.string().default('@rem'),
   execution_mode: z.string().default('isolated'),
   allowed_tools: z.string().nullable().default(null),
 });
@@ -224,7 +224,7 @@ CREATE TABLE IF NOT EXISTS groups (
   id TEXT PRIMARY KEY,
   channel TEXT NOT NULL,
   name TEXT,
-  trigger_word TEXT DEFAULT '@Andy',
+  trigger_word TEXT DEFAULT '@rem',
   execution_mode TEXT DEFAULT 'isolated',
   allowed_tools TEXT,
   created_at INTEGER DEFAULT (unixepoch()),

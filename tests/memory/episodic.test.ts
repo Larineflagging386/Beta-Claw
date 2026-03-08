@@ -101,7 +101,7 @@ describe('EpisodicMemory', () => {
       '',
       '## MicroClaw Config',
       '@group{',
-      '  triggerWord:@Mia',
+      '  triggerWord:@rem',
       '  allowedTools:[brave_search, fetch_url]',
       '}',
     ].join('\n');
@@ -110,7 +110,7 @@ describe('EpisodicMemory', () => {
 
     const config = await memory.getGroupConfig('family');
     expect(config).not.toBeNull();
-    expect(config!['triggerWord']).toBe('@Mia');
+    expect(config!['triggerWord']).toBe('@re');
     expect(config!['allowedTools']).toEqual(['brave_search', 'fetch_url']);
   });
 

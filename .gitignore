@@ -28,6 +28,7 @@ microclaw.db
 microclaw.db-wal
 microclaw.db-shm
 microclaw.md
+48434866319368@lid
 
 # dotenv environment variable files
 .env

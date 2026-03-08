@@ -305,9 +305,9 @@ describe('TOON Serializer', () => {
 
   describe('edge cases', () => {
     it('handles keys with hyphens', () => {
-      const input = '@config{\n  trigger-word:@Andy\n  max-tokens:4096\n}';
+      const input = '@config{\n  trigger-word:@rem\n  max-tokens:4096\n}';
       const result = decode(input);
-      expect(result.data['trigger-word']).toBe('@Andy');
+      expect(result.data['trigger-word']).toBe('@rem');
       expect(result.data['max-tokens']).toBe(4096);
     });
 
@@ -396,7 +396,7 @@ describe('TOON Serializer', () => {
   version:2.0.0
   profile:standard
   executionMode:isolated
-  triggerWord:@Andy
+  triggerWord:@rem
 }`;
       const result = decode(input);
       expect(result.type).toBe('microclaw');

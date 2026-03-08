@@ -32,7 +32,7 @@ export class DiscordChannel implements IChannel {
     this.client.on(Events.MessageCreate, async (message) => {
       if (message.author.bot) return;
       const text = message.content;
-      const trigger = process.env['TRIGGER_WORD'] ?? '@Andy';
+      const trigger = process.env['TRIGGER_WORD'] ?? '@rem';
       const isMentioned = this.client?.user ? message.mentions.users.has(this.client.user.id) : false;
 
       if (!isMentioned && !text.includes(trigger)) return;
