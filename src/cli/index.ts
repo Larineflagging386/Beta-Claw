@@ -15,13 +15,14 @@ import { setupCommand } from './commands/setup.js';
 import { doctorCommand } from './commands/doctor.js';
 import { benchmarkCommand } from './commands/benchmark.js';
 import { exportCommand } from './commands/export.js';
+import { heartbeatCommand } from './commands/heartbeat.js';
 
 const program = new Command();
 
 program
   .name('microclaw')
   .description('Open, provider-agnostic AI agent runtime')
-  .version('2.0.0');
+  .version('3.0.0');
 
 program.addCommand(chatCommand);
 program.addCommand(startCommand);
@@ -38,5 +39,6 @@ program.addCommand(setupCommand);
 program.addCommand(doctorCommand);
 program.addCommand(benchmarkCommand);
 program.addCommand(exportCommand);
+program.addCommand(heartbeatCommand);
 
 program.parse();

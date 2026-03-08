@@ -94,6 +94,32 @@ const SnapshotSchema = z.object({
   expires_at: z.number().int(),
 });
 
+const HeartbeatConfigSchema = z.object({
+  group_id: z.string(),
+  every_ms: z.number().int().default(1800000),
+  model: z.string().nullable().default(null),
+  light_context: z.number().int().default(1),
+  show_ok: z.number().int().default(0),
+  show_alerts: z.number().int().default(1),
+  use_indicator: z.number().int().default(1),
+  target: z.string().default('none'),
+  ack_max_chars: z.number().int().default(300),
+  last_tick: z.number().int().nullable().default(null),
+  next_tick: z.number().int().nullable().default(null),
+  enabled: z.number().int().default(1),
+});
+
+const HeartbeatLogSchema = z.object({
+  id: z.string(),
+  group_id: z.string(),
+  tick_at: z.number().int(),
+  skipped: z.number().int().default(0),
+  skip_reason: z.string().nullable().default(null),
+  response_type: z.string().nullable().default(null),
+  tokens_used: z.number().int().nullable().default(null),
+  cost_usd: z.number().nullable().default(null),
+});
+
 type Message = z.output<typeof MessageSchema>;
 type MessageInput = z.input<typeof MessageSchema>;
 type Session = z.output<typeof SessionSchema>;
@@ -112,6 +138,10 @@ type IpcMessage = z.output<typeof IpcMessageSchema>;
 type IpcMessageInput = z.input<typeof IpcMessageSchema>;
 type Snapshot = z.output<typeof SnapshotSchema>;
 type SnapshotInput = z.input<typeof SnapshotSchema>;
+type HeartbeatConfig = z.output<typeof HeartbeatConfigSchema>;
+type HeartbeatConfigInput = z.input<typeof HeartbeatConfigSchema>;
+type HeartbeatLog = z.output<typeof HeartbeatLogSchema>;
+type HeartbeatLogInput = z.input<typeof HeartbeatLogSchema>;
 
 type ResourceProfile = 'micro' | 'lite' | 'standard' | 'full';
 
@@ -233,6 +263,35 @@ CREATE TABLE IF NOT EXISTS snapshots (
   storage_dir TEXT NOT NULL,
   created_at INTEGER DEFAULT (unixepoch()),
   expires_at INTEGER NOT NULL
+);
+
+-- Heartbeat config + state
+CREATE TABLE IF NOT EXISTS heartbeat_config (
+  group_id TEXT PRIMARY KEY,
+  every_ms INTEGER NOT NULL DEFAULT 1800000,
+  model TEXT,
+  light_context INTEGER DEFAULT 1,
+  show_ok INTEGER DEFAULT 0,
+  show_alerts INTEGER DEFAULT 1,
+  use_indicator INTEGER DEFAULT 1,
+  target TEXT DEFAULT 'none',
+  ack_max_chars INTEGER DEFAULT 300,
+  last_tick INTEGER,
+  next_tick INTEGER,
+  enabled INTEGER DEFAULT 1
+);
+
+-- Heartbeat event log
+CREATE TABLE IF NOT EXISTS heartbeat_log (
+  id TEXT PRIMARY KEY,
+  group_id TEXT NOT NULL,
+  tick_at INTEGER NOT NULL,
+  skipped INTEGER DEFAULT 0,
+  skip_reason TEXT,
+  response_type TEXT,
+  tokens_used INTEGER,
+  cost_usd REAL,
+  created_at INTEGER DEFAULT (unixepoch())
 );
 
 -- Vector embeddings fallback (FTS5)
@@ -526,6 +585,60 @@ class MicroClawDB {
     return result.changes;
   }
 
+  // --- Heartbeat Config ---
+
+  upsertHeartbeatConfig(config: HeartbeatConfigInput): void {
+    const validated = HeartbeatConfigSchema.parse(config);
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO heartbeat_config (group_id, every_ms, model, light_context, show_ok, show_alerts, use_indicator, target, ack_max_chars, last_tick, next_tick, enabled)
+       VALUES (@group_id, @every_ms, @model, @light_context, @show_ok, @show_alerts, @use_indicator, @target, @ack_max_chars, @last_tick, @next_tick, @enabled)`,
+      )
+      .run(validated);
+  }
+
+  getHeartbeatConfig(groupId: string): HeartbeatConfig | undefined {
+    return this.db
+      .prepare('SELECT * FROM heartbeat_config WHERE group_id = ? AND enabled = 1')
+      .get(groupId) as HeartbeatConfig | undefined;
+  }
+
+  getAllHeartbeatConfigs(): HeartbeatConfig[] {
+    return this.db
+      .prepare('SELECT * FROM heartbeat_config WHERE enabled = 1')
+      .all() as HeartbeatConfig[];
+  }
+
+  updateHeartbeatTick(groupId: string, lastTick: number, nextTick: number | null): void {
+    this.db
+      .prepare('UPDATE heartbeat_config SET last_tick = ?, next_tick = ? WHERE group_id = ?')
+      .run(lastTick, nextTick, groupId);
+  }
+
+  setHeartbeatEnabled(groupId: string, enabled: boolean): void {
+    this.db
+      .prepare('UPDATE heartbeat_config SET enabled = ? WHERE group_id = ?')
+      .run(enabled ? 1 : 0, groupId);
+  }
+
+  // --- Heartbeat Log ---
+
+  insertHeartbeatLog(entry: HeartbeatLogInput): void {
+    const validated = HeartbeatLogSchema.parse(entry);
+    this.db
+      .prepare(
+        `INSERT INTO heartbeat_log (id, group_id, tick_at, skipped, skip_reason, response_type, tokens_used, cost_usd)
+       VALUES (@id, @group_id, @tick_at, @skipped, @skip_reason, @response_type, @tokens_used, @cost_usd)`,
+      )
+      .run(validated);
+  }
+
+  getHeartbeatLogs(groupId: string, limit = 20): HeartbeatLog[] {
+    return this.db
+      .prepare('SELECT * FROM heartbeat_log WHERE group_id = ? ORDER BY tick_at DESC LIMIT ?')
+      .all(groupId, limit) as HeartbeatLog[];
+  }
+
   // --- Memory FTS ---
 
   insertMemoryChunk(
@@ -610,6 +723,10 @@ export type {
   IpcMessageInput,
   Snapshot,
   SnapshotInput,
+  HeartbeatConfig,
+  HeartbeatConfigInput,
+  HeartbeatLog,
+  HeartbeatLogInput,
   ResourceProfile,
 };
 export {
@@ -622,4 +739,6 @@ export {
   SecurityEventSchema,
   IpcMessageSchema,
   SnapshotSchema,
+  HeartbeatConfigSchema,
+  HeartbeatLogSchema,
 };

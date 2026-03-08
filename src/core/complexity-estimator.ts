@@ -1,160 +1,143 @@
 export type Tier = 'nano' | 'standard' | 'pro' | 'max';
 
 /**
- * Multi-signal complexity estimator.
+ * Weighted complexity estimator — PRD v3.0.
  *
- * Scoring approach: each signal contributes points to a total score,
- * which is then mapped to a tier. This is far more accurate than the
- * previous first-match keyword approach.
+ * Score =
+ *   (0.15 × normalize(token_count, 0, 500))
+ * + (0.25 × verb_complexity_score)
+ * + (0.30 × tool_dependency_depth)
+ * + (0.20 × reasoning_keyword_density)
+ * + (0.10 × historical_accuracy_needed)
  *
  * Score bands:
- *   0-15  → nano    (simple chat, greetings, yes/no)
- *  16-45  → standard (file ops, web search, code gen, scheduling)
- *  46-80  → pro     (multi-step reasoning, analysis, full implementations)
- *  81+    → max     (full app generation, complex multi-agent tasks)
+ *   0–20  → nano     (greetings, simple Q&A, persona replies)
+ *  21–60  → standard (summaries, single-tool tasks, research)
+ *  61–85  → pro      (multi-step coding, analysis, multi-tool chains)
+ *  86–100 → max      (agent swarms, large codebases, novel reasoning)
  */
 export function classifyTier(message: string, context?: { recentToolUse?: boolean }): Tier {
   const score = computeScore(message, context);
-  if (score >= 81) return 'max';
-  if (score >= 46) return 'pro';
-  if (score >= 16) return 'standard';
+  if (score >= 86) return 'max';
+  if (score >= 61) return 'pro';
+  if (score >= 21) return 'standard';
   return 'nano';
+}
+
+function normalize(value: number, min: number, max: number): number {
+  if (max <= min) return 0;
+  return Math.max(0, Math.min(1, (value - min) / (max - min)));
 }
 
 function computeScore(message: string, context?: { recentToolUse?: boolean }): number {
   const lower = message.toLowerCase();
   const words = lower.split(/\s+/).filter(Boolean);
-  const len = message.length;
-  let score = 0;
+  const tokenEstimate = Math.ceil(message.length / 4);
 
-  // ─── LENGTH SIGNAL ─────────────────────────────────────────────
-  // Raw length is a weak signal — use it gently
-  if (len > 800) score += 20;
-  else if (len > 400) score += 12;
-  else if (len > 200) score += 6;
-  else if (len > 80) score += 2;
-
-  // ─── NANO SUPPRESSORS ──────────────────────────────────────────
-  // Very short messages with simple vocabulary → strong nano signal
+  // ─── NANO SHORT-CIRCUIT ────────────────────────────────────────
   const nanoKeywords = [
     'hi', 'hello', 'hey', 'thanks', 'thank you', 'ok', 'okay',
     'yes', 'no', 'sure', 'great', 'good', 'cool', 'nice',
     'good morning', 'good night', 'good evening',
-    'how are you', 'what time', 'what day', 'what\'s up',
+    'how are you', 'what time', 'what day', "what's up",
     'bye', 'goodbye', 'later', 'see you',
   ];
-  if (len < 60 && nanoKeywords.some(k => lower.includes(k))) {
-    // Strong nano signal — score cap
-    score = Math.min(score, 8);
-    return score;
+  if (message.length < 60 && nanoKeywords.some(k => lower.includes(k))) {
+    return context?.recentToolUse ? 21 : 8;
   }
 
-  // ─── PRO/MAX KEYWORDS ──────────────────────────────────────────
-  // Tasks that require extended reasoning or multi-step execution
-  const maxKeywords = [
-    'full app', 'full application', 'complete app', 'entire app',
-    'build me a', 'create a complete', 'production-ready',
-    'full-stack', 'fullstack', 'entire codebase', 'from scratch',
-    'end-to-end', 'e2e', 'full implementation', 'complete implementation',
-    'build a website', 'build a web app', 'build a server',
-    'design and implement', 'architect', 'microservice',
-    'all features', 'everything you can',
-  ];
-  if (maxKeywords.some(k => lower.includes(k))) score += 40;
+  // ─── SIGNAL 1: Token count (weight 0.15) ───────────────────────
+  const tokenSignal = normalize(tokenEstimate, 0, 500);
 
-  const proKeywords = [
-    'analyse', 'analyze', 'analysis', 'architecture',
-    'refactor', 'optimize', 'optimise', 'performance',
-    'debug', 'diagnose', 'troubleshoot',
-    'step by step', 'step-by-step', 'explain in detail',
+  // ─── SIGNAL 2: Verb complexity (weight 0.25) ───────────────────
+  const complexVerbs = [
+    'analyse', 'analyze', 'refactor', 'optimize', 'optimise',
+    'debug', 'diagnose', 'troubleshoot', 'implement', 'integrate',
+    'architect', 'architecture', 'deploy', 'migrate', 'benchmark', 'compile',
+    'orchestrate', 'parallelize', 'serialize',
+  ];
+  const maxVerbs = [
+    'design and implement', 'build from scratch', 'create a complete',
+    'full-stack', 'fullstack', 'production-ready', 'end-to-end',
+  ];
+  let verbScore = 0;
+  const complexVerbHits = complexVerbs.filter(v => lower.includes(v)).length;
+  verbScore += Math.min(complexVerbHits * 0.25, 0.7);
+  if (maxVerbs.some(v => lower.includes(v))) verbScore = 1.0;
+  verbScore = Math.min(verbScore, 1.0);
+
+  // ─── SIGNAL 3: Tool dependency depth (weight 0.30) ─────────────
+  const toolIndicators = [
+    { pattern: /\b(?:create|write|save|generate)\s+(?:a\s+)?file/i, depth: 1 },
+    { pattern: /\b(?:run|execute|install|npm|pip|bash|shell|git)\b/i, depth: 1 },
+    { pattern: /\b(?:search|look\s*up|google|browse)\b/i, depth: 1 },
+    { pattern: /\b(?:schedule|cron|recurring|heartbeat|timer)\b/i, depth: 1 },
+    { pattern: /\b(?:then|after\s+that|next|and\s+also|and\s+then)\b/i, depth: 0.5 },
+    { pattern: /\b(?:first|second|third|step\s+\d)\b/i, depth: 0.5 },
+    { pattern: /\b(?:full\s+app|entire|all\s+features|from\s+scratch)\b/i, depth: 2 },
+  ];
+  let rawToolDepth = 0;
+  for (const { pattern, depth } of toolIndicators) {
+    if (pattern.test(message)) rawToolDepth += depth;
+  }
+  const toolDepthSignal = normalize(rawToolDepth, 0, 6);
+
+  // ─── SIGNAL 4: Reasoning keyword density (weight 0.20) ─────────
+  const reasoningKeywords = [
+    'why', 'because', 'therefore', 'however', 'although',
     'compare', 'pros and cons', 'tradeoffs', 'trade-offs',
-    'implement', 'integrate', 'authentication', 'authorization',
-    'database', 'schema', 'migration', 'deploy', 'deployment',
-    'docker', 'kubernetes', 'ci/cd', 'pipeline',
-    'security', 'encryption', 'algorithm',
-    'machine learning', 'neural network', 'ai model',
+    'step by step', 'step-by-step', 'explain in detail',
     'comprehensive', 'thorough', 'complete guide',
+    'algorithm', 'security', 'encryption', 'authentication',
+    'machine learning', 'neural network', 'performance',
+    'if ', 'unless', 'depending on', 'based on',
   ];
-  if (proKeywords.some(k => lower.includes(k))) score += 20;
+  const reasoningHits = reasoningKeywords.filter(k => lower.includes(k)).length;
+  const reasoningDensity = words.length > 0
+    ? normalize(reasoningHits / words.length, 0, 0.15)
+    : normalize(reasoningHits, 0, 3);
 
-  // ─── TOOL-NEED SIGNAL ──────────────────────────────────────────
-  // Messages that require tool use (file ops, execution, search)
-  const fileOpsKeywords = [
-    'create file', 'write file', 'save file', 'create folder', 'make folder',
-    'mkdir', 'create directory', 'write to', 'save to', 'generate file',
-    'build a', 'create a', 'make a', 'write a', 'generate a',
+  // ─── SIGNAL 5: Historical accuracy needed (weight 0.10) ─────────
+  const accuracyKeywords = [
+    'exact', 'precise', 'accurate', 'correct', 'verify',
+    'validate', 'test', 'proof', 'prove', 'guarantee',
+    'critical', 'production', 'important', 'must', 'shall',
+    'database', 'schema', 'migration', 'deploy',
   ];
-  if (fileOpsKeywords.some(k => lower.includes(k))) score += 15;
+  const accuracyHits = accuracyKeywords.filter(k => lower.includes(k)).length;
+  const accuracySignal = normalize(accuracyHits, 0, 4);
 
-  const execKeywords = [
-    'run', 'execute', 'install', 'npm', 'pip', 'python', 'node',
-    'bash', 'shell', 'command', 'script', 'compile', 'start server',
-    'git', 'clone', 'push', 'pull',
-  ];
-  if (execKeywords.some(k => lower.includes(k))) score += 10;
+  // ─── WEIGHTED SUM ──────────────────────────────────────────────
+  let score = Math.round(
+    (0.15 * tokenSignal +
+     0.25 * verbScore +
+     0.30 * toolDepthSignal +
+     0.20 * reasoningDensity +
+     0.10 * accuracySignal) * 100,
+  );
 
-  const searchKeywords = [
-    'search', 'look up', 'look it up', 'find out', 'google',
-    'latest', 'current', 'news', 'price', 'weather', 'today',
-    'what is', 'who is', 'when did', 'where is',
-  ];
-  if (searchKeywords.some(k => lower.includes(k))) score += 8;
-
-  const commsKeywords = [
-    'send', 'message', 'whatsapp', 'telegram', 'discord',
-    'email', 'notify', 'remind',
-  ];
-  if (commsKeywords.some(k => lower.includes(k))) score += 8;
-
-  const scheduleKeywords = [
-    'every', 'schedule', 'cron', 'recurring', 'daily', 'weekly',
-    'at 9am', 'every day', 'every hour', 'every minute',
-    'remind me', 'set a reminder', 'set an alarm',
-  ];
-  if (scheduleKeywords.some(k => lower.includes(k))) score += 8;
-
-  // ─── CODE INDICATOR SIGNAL ─────────────────────────────────────
-  const codeKeywords = [
-    'function', 'class', 'api', 'endpoint', 'route',
-    'typescript', 'javascript', 'python', 'rust', 'golang',
-    'react', 'vue', 'angular', 'express', 'fastapi',
-    'html', 'css', 'sql', 'json', 'yaml', 'config',
-  ];
+  // ─── CODE INDICATORS (bonus) ───────────────────────────────────
   const backtickCount = (message.match(/`/g) ?? []).length;
-  if (backtickCount >= 2) score += 12;
-  if (codeKeywords.some(k => lower.includes(k))) score += 10;
+  if (backtickCount >= 6) score += 15;
+  else if (backtickCount >= 2) score += 8;
 
-  // ─── QUESTION COMPLEXITY SIGNAL ────────────────────────────────
-  const questionMarkCount = (message.match(/\?/g) ?? []).length;
-  if (questionMarkCount >= 3) score += 8;
-  else if (questionMarkCount >= 2) score += 4;
-
-  // Multi-part request indicators
-  const multiPartIndicators = [
-    'and also', 'and then', 'additionally', 'furthermore', 'moreover',
-    'first', 'second', 'third', 'finally', 'lastly',
-    'then', 'after that', 'next', 'step 1', 'step 2',
-    '1.', '2.', '3.', 'a)', 'b)', 'c)',
-  ];
+  const multiPartIndicators = ['1.', '2.', '3.', 'a)', 'b)', 'c)'];
   const multiPartCount = multiPartIndicators.filter(k => lower.includes(k)).length;
-  if (multiPartCount >= 3) score += 15;
-  else if (multiPartCount >= 2) score += 8;
-  else if (multiPartCount >= 1) score += 4;
+  if (multiPartCount >= 3) score += 10;
+  else if (multiPartCount >= 2) score += 5;
 
-  // Conditional/logic complexity
-  const conditionalKeywords = ['if ', 'unless', 'when ', 'depending on', 'based on', 'assuming'];
-  if (conditionalKeywords.some(k => lower.includes(k))) score += 5;
+  // Context: prior tool use → at least standard
+  if (context?.recentToolUse) score = Math.max(score, 21);
 
-  // ─── WORD COUNT SIGNAL ─────────────────────────────────────────
-  if (words.length > 80) score += 15;
-  else if (words.length > 40) score += 8;
-  else if (words.length > 20) score += 4;
+  return Math.min(score, 100);
+}
 
-  // ─── CONTEXT SIGNAL ────────────────────────────────────────────
-  // If the previous turn involved tool use, maintain at least standard
-  if (context?.recentToolUse) score = Math.max(score, 16);
-
-  return score;
+export interface ComplexityBreakdown {
+  tokenFactor: number;
+  verbComplexity: number;
+  toolDependency: number;
+  reasoningDensity: number;
+  accuracyNeeded: number;
 }
 
 export interface ComplexityResult {
@@ -162,14 +145,80 @@ export interface ComplexityResult {
   tier: Tier;
   webSearchNeeded: boolean;
   toolsNeeded: string[];
+  breakdown: ComplexityBreakdown;
 }
 
-const TIER_SCORES: Record<Tier, number> = { nano: 10, standard: 30, pro: 60, max: 90 };
+const TIER_SCORES: Record<Tier, number> = { nano: 10, standard: 40, pro: 73, max: 93 };
+
+function computeBreakdown(message: string): ComplexityBreakdown {
+  const lower = message.toLowerCase();
+  const words = lower.split(/\s+/).filter(Boolean);
+  const tokenEstimate = Math.ceil(message.length / 4);
+
+  const tokenFactor = normalize(tokenEstimate, 0, 500);
+
+  const complexVerbs = [
+    'analyse', 'analyze', 'refactor', 'optimize', 'optimise',
+    'debug', 'diagnose', 'troubleshoot', 'implement', 'integrate',
+    'architect', 'architecture', 'deploy', 'migrate', 'benchmark', 'compile',
+    'orchestrate', 'parallelize', 'serialize',
+  ];
+  const maxVerbs = [
+    'design and implement', 'build from scratch', 'create a complete',
+    'full-stack', 'fullstack', 'production-ready', 'end-to-end',
+  ];
+  let verbComplexity = 0;
+  const complexVerbHits = complexVerbs.filter(v => lower.includes(v)).length;
+  verbComplexity += Math.min(complexVerbHits * 0.25, 0.7);
+  if (maxVerbs.some(v => lower.includes(v))) verbComplexity = 1.0;
+  verbComplexity = Math.min(verbComplexity, 1.0);
+
+  const toolIndicators = [
+    { pattern: /\b(?:create|write|save|generate)\s+(?:a\s+)?file/i, depth: 1 },
+    { pattern: /\b(?:run|execute|install|npm|pip|bash|shell|git)\b/i, depth: 1 },
+    { pattern: /\b(?:search|look\s*up|google|browse)\b/i, depth: 1 },
+    { pattern: /\b(?:schedule|cron|recurring|heartbeat|timer)\b/i, depth: 1 },
+    { pattern: /\b(?:then|after\s+that|next|and\s+also|and\s+then)\b/i, depth: 0.5 },
+    { pattern: /\b(?:first|second|third|step\s+\d)\b/i, depth: 0.5 },
+    { pattern: /\b(?:full\s+app|entire|all\s+features|from\s+scratch)\b/i, depth: 2 },
+  ];
+  let rawToolDepth = 0;
+  for (const { pattern, depth } of toolIndicators) {
+    if (pattern.test(message)) rawToolDepth += depth;
+  }
+  const toolDependency = normalize(rawToolDepth, 0, 6);
+
+  const reasoningKeywords = [
+    'why', 'because', 'therefore', 'however', 'although',
+    'compare', 'pros and cons', 'tradeoffs', 'trade-offs',
+    'step by step', 'step-by-step', 'explain in detail',
+    'comprehensive', 'thorough', 'complete guide',
+    'algorithm', 'security', 'encryption', 'authentication',
+    'machine learning', 'neural network', 'performance',
+    'if ', 'unless', 'depending on', 'based on',
+  ];
+  const reasoningHits = reasoningKeywords.filter(k => lower.includes(k)).length;
+  const reasoningDensity = words.length > 0
+    ? normalize(reasoningHits / words.length, 0, 0.15)
+    : normalize(reasoningHits, 0, 3);
+
+  const accuracyKeywords = [
+    'exact', 'precise', 'accurate', 'correct', 'verify',
+    'validate', 'test', 'proof', 'prove', 'guarantee',
+    'critical', 'production', 'important', 'must', 'shall',
+    'database', 'schema', 'migration', 'deploy',
+  ];
+  const accuracyHits = accuracyKeywords.filter(k => lower.includes(k)).length;
+  const accuracyNeeded = normalize(accuracyHits, 0, 4);
+
+  return { tokenFactor, verbComplexity, toolDependency, reasoningDensity, accuracyNeeded };
+}
 
 export function estimateComplexity(input: string, context?: { recentToolUse?: boolean }): ComplexityResult {
   const score = computeScore(input, context);
   const tier = classifyTier(input, context);
   const lower = input.toLowerCase();
+  const breakdown = computeBreakdown(input);
 
   const toolsNeeded: string[] = [];
 
@@ -195,5 +244,6 @@ export function estimateComplexity(input: string, context?: { recentToolUse?: bo
     tier,
     webSearchNeeded,
     toolsNeeded,
+    breakdown,
   };
 }

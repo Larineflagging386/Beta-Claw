@@ -25,14 +25,14 @@ describe('DynamicToolLoader', () => {
       expect(result.category).toBe('file_ops');
     });
 
-    it('classifies "send an email to John" as email', () => {
-      const result = classifyIntent('send an email to John');
-      expect(result.category).toBe('email');
+    it('classifies "/add-telegram" as skills', () => {
+      const result = classifyIntent('/add-telegram');
+      expect(result.category).toBe('skills');
     });
 
-    it('classifies "calculate 2+2" as math', () => {
-      const result = classifyIntent('calculate 2+2');
-      expect(result.category).toBe('math');
+    it('classifies "schedule a cron job every hour" as automation', () => {
+      const result = classifyIntent('schedule a cron job every hour');
+      expect(result.category).toBe('automation');
     });
 
     it('classifies ambiguous "hello" as general', () => {
@@ -57,34 +57,34 @@ describe('DynamicToolLoader', () => {
       expect(result.category).toBe('file_ops');
     });
 
-    it('classifies "check my inbox" as email', () => {
-      const result = classifyIntent('check my inbox');
-      expect(result.category).toBe('email');
+    it('classifies "set a heartbeat timer every 30 minutes" as automation', () => {
+      const result = classifyIntent('set a heartbeat timer every 30 minutes');
+      expect(result.category).toBe('automation');
     });
 
-    it('classifies "schedule a meeting tomorrow" as calendar', () => {
-      const result = classifyIntent('schedule a meeting tomorrow');
-      expect(result.category).toBe('calendar');
+    it('classifies "open the browser and screenshot the page" as browser', () => {
+      const result = classifyIntent('open the browser and screenshot the page');
+      expect(result.category).toBe('browser');
     });
 
-    it('classifies "solve this equation" as math', () => {
-      const result = classifyIntent('solve this equation');
-      expect(result.category).toBe('math');
+    it('classifies "clear conversation context and reset session" as session_mgmt', () => {
+      const result = classifyIntent('clear conversation context and reset session');
+      expect(result.category).toBe('session_mgmt');
     });
 
-    it('classifies "generate an image of a cat" as media', () => {
-      const result = classifyIntent('generate an image of a cat');
-      expect(result.category).toBe('media');
-    });
-
-    it('classifies "install npm package" as system_cmd', () => {
-      const result = classifyIntent('install npm package');
+    it('classifies "install npm package via sudo apt" as system_cmd', () => {
+      const result = classifyIntent('install npm package via sudo apt');
       expect(result.category).toBe('system_cmd');
     });
 
-    it('classifies "send a message on slack" as communication', () => {
-      const result = classifyIntent('send a message on slack');
-      expect(result.category).toBe('communication');
+    it('classifies "/status" as skills', () => {
+      const result = classifyIntent('/status');
+      expect(result.category).toBe('skills');
+    });
+
+    it('classifies "/customize setup the skill" as skills', () => {
+      const result = classifyIntent('/customize setup the skill');
+      expect(result.category).toBe('skills');
     });
 
     it('classifies "what did we discuss last time" as memory_read', () => {

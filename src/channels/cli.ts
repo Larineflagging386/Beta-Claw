@@ -2,6 +2,7 @@ import * as readline from 'node:readline';
 import { randomUUID } from 'node:crypto';
 import type { IChannel, InboundMessage, OutboundMessage, ChannelFeature } from './interface.js';
 import { OutboundMessageSchema } from './interface.js';
+import type { CompletionChunk } from '../providers/interface.js';
 
 type MessageHandler = (msg: InboundMessage) => void;
 
@@ -65,6 +66,22 @@ export class CliChannel implements IChannel {
         else resolve();
       });
     });
+  }
+
+  async sendStream(stream: AsyncIterable<CompletionChunk>): Promise<string> {
+    this.output.write('\n');
+    let full = '';
+    for await (const chunk of stream) {
+      const delta = chunk.content ?? '';
+      this.output.write(delta);
+      full += delta;
+    }
+    this.output.write('\n');
+    return full;
+  }
+
+  writeRaw(text: string): void {
+    this.output.write(text);
   }
 
   onMessage(handler: MessageHandler): void {

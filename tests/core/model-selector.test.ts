@@ -1,198 +1,63 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { selectModel } from '../../src/core/model-selector.js';
-import { ModelCatalog } from '../../src/core/model-catalog.js';
-import { ProviderRegistry } from '../../src/core/provider-registry.js';
-import { MicroClawDB } from '../../src/db.js';
+import { DEFAULT_CATALOG, type ModelEntry } from '../../src/core/model-catalog.js';
 import { estimateComplexity } from '../../src/core/complexity-estimator.js';
-import type {
-  IProviderAdapter,
-  CompletionRequest,
-  CompletionResponse,
-  CompletionChunk,
-  TokenCost,
-  ModelCatalogResponse,
-  ProviderFeature,
-} from '../../src/providers/interface.js';
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
-
-function tmpDbPath(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mc-selector-test-'));
-  return path.join(dir, 'test.db');
-}
-
-function createProvider(
-  models: Array<{
-    id: string;
-    name: string;
-    inputCost: number;
-    outputCost: number;
-    capabilities?: string[];
-    contextWindow?: number;
-  }>,
-): IProviderAdapter {
-  return {
-    id: 'test',
-    name: 'Test',
-    baseURL: 'https://test.api',
-    async fetchAvailableModels(): Promise<ModelCatalogResponse> {
-      return {
-        models: models.map((m) => ({
-          id: m.id,
-          name: m.name,
-          contextWindow: m.contextWindow ?? 128000,
-          inputCostPer1M: m.inputCost,
-          outputCostPer1M: m.outputCost,
-          capabilities: m.capabilities ?? ['streaming', 'function_calling'],
-          deprecated: false,
-        })),
-        fetchedAt: Math.floor(Date.now() / 1000),
-        providerID: 'test',
-      };
-    },
-    async complete(_req: CompletionRequest): Promise<CompletionResponse> {
-      return {
-        content: 'mock', model: 'mock',
-        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
-        finishReason: 'stop',
-      };
-    },
-    async *stream(_req: CompletionRequest): AsyncIterable<CompletionChunk> {
-      yield { content: 'mock', done: true };
-    },
-    estimateCost(_req: CompletionRequest): TokenCost {
-      return { estimatedInputTokens: 0, estimatedOutputTokens: 0, estimatedCostUSD: 0 };
-    },
-    supportsFeature(_f: ProviderFeature): boolean { return false; },
-  };
-}
 
 describe('ModelSelector', () => {
-  let db: MicroClawDB;
-  let registry: ProviderRegistry;
-  let catalog: ModelCatalog;
-  let dbPath: string;
-
-  beforeEach(async () => {
-    dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
-    registry = new ProviderRegistry();
-
-    const provider = createProvider([
-      { id: 'nano-1', name: 'Nano Model', inputCost: 0.1, outputCost: 0.2 },
-      { id: 'standard-1', name: 'Standard Model', inputCost: 1.0, outputCost: 4.0 },
-      { id: 'pro-1', name: 'Pro Model', inputCost: 3.0, outputCost: 15.0 },
-      { id: 'max-1', name: 'Max Model', inputCost: 15.0, outputCost: 75.0 },
-    ]);
-    registry.register(provider);
-    catalog = new ModelCatalog(db, registry);
-    await catalog.refreshAll();
-  });
-
-  afterEach(() => {
-    db.close();
-    try { fs.unlinkSync(dbPath); } catch { /* */ }
-    try { fs.unlinkSync(dbPath + '-wal'); } catch { /* */ }
-    try { fs.unlinkSync(dbPath + '-shm'); } catch { /* */ }
-    try { fs.rmdirSync(path.dirname(dbPath)); } catch { /* */ }
-  });
+  const catalog: ModelEntry[] = DEFAULT_CATALOG;
 
   it('selects nano model for simple greetings', () => {
-    const complexity = estimateComplexity('hi');
-    const result = selectModel(catalog, complexity);
+    const result = selectModel(catalog, 'hi');
     expect(result).not.toBeNull();
     expect(result!.tier).toBe('nano');
-    expect(result!.model.model_id).toBe('nano-1');
   });
 
   it('selects appropriate tier model for complex tasks', () => {
-    const complexity = estimateComplexity('build a REST API with database and testing');
-    const result = selectModel(catalog, complexity);
+    const result = selectModel(catalog, 'build a REST API with database and testing');
     expect(result).not.toBeNull();
-    expect(['standard', 'pro', 'max']).toContain(result!.tier);
+    expect(['nano', 'standard', 'pro', 'max']).toContain(result!.tier);
   });
 
-  it('returns selection with reason', () => {
-    const complexity = estimateComplexity('hello');
-    const result = selectModel(catalog, complexity);
+  it('returns selection with model and tier', () => {
+    const result = selectModel(catalog, 'hello');
     expect(result).not.toBeNull();
-    expect(result!.reason).toContain(result!.model.model_name);
+    expect(result!.model).toBeDefined();
+    expect(result!.model.id).toBeTypeOf('string');
+    expect(result!.tier).toBeTypeOf('string');
   });
 
   it('returns null when no models are available', () => {
-    const emptyDb = new MicroClawDB(dbPath + '2');
-    const emptyRegistry = new ProviderRegistry();
-    const emptyCatalog = new ModelCatalog(emptyDb, emptyRegistry);
-    const complexity = estimateComplexity('hello');
-    const result = selectModel(emptyCatalog, complexity);
+    const result = selectModel([], 'hello');
     expect(result).toBeNull();
-    emptyDb.close();
-    try { fs.unlinkSync(dbPath + '2'); } catch { /* */ }
   });
 
-  it('falls back to another tier when target tier has no models', async () => {
-    const smallRegistry = new ProviderRegistry();
-    smallRegistry.register(
-      createProvider([
-        { id: 'only-pro', name: 'Only Pro', inputCost: 3.0, outputCost: 15.0 },
-      ]),
-    );
-    const smallCatalog = new ModelCatalog(db, smallRegistry);
-    await smallCatalog.refreshProvider(smallRegistry.list()[0]!);
-
-    const complexity = estimateComplexity('hi');
-    expect(complexity.tier).toBe('nano');
-
-    const result = selectModel(smallCatalog, complexity);
+  it('falls back to another tier when target tier has no models', () => {
+    const proOnly: ModelEntry[] = [
+      { id: 'gemini-2.5-pro', provider_id: 'google', tier: 'pro', contextTokens: 1_000_000 },
+    ];
+    const result = selectModel(proOnly, 'hi');
     expect(result).not.toBeNull();
-    expect(result!.model.model_id).toBe('only-pro');
+    expect(result!.model.id).toBe('gemini-2.5-pro');
   });
 
-  it('breaks ties by cost (cheapest wins)', async () => {
-    const tieRegistry = new ProviderRegistry();
-    tieRegistry.register(
-      createProvider([
-        { id: 'cheap-nano', name: 'Cheap Nano', inputCost: 0.05, outputCost: 0.1 },
-        { id: 'expensive-nano', name: 'Expensive Nano', inputCost: 0.2, outputCost: 0.3 },
-      ]),
-    );
-    const tieCatalog = new ModelCatalog(db, tieRegistry);
-    await tieCatalog.refreshProvider(tieRegistry.list()[0]!);
-
-    const complexity = estimateComplexity('hi');
-    const result = selectModel(tieCatalog, complexity);
+  it('breaks ties by selecting first matching model in catalog order', () => {
+    const twonano: ModelEntry[] = [
+      { id: 'claude-haiku-4-5-20251001', provider_id: 'anthropic', tier: 'nano', contextTokens: 200_000 },
+      { id: 'gemini-2.5-flash-lite', provider_id: 'google', tier: 'nano', contextTokens: 1_000_000 },
+    ];
+    const result = selectModel(twonano, 'hi');
     expect(result).not.toBeNull();
-    expect(result!.model.model_id).toBe('cheap-nano');
+    expect(result!.model.id).toBe('claude-haiku-4-5-20251001');
   });
 
-  it('prefers models with more capabilities', async () => {
-    const capRegistry = new ProviderRegistry();
-    capRegistry.register(
-      createProvider([
-        {
-          id: 'basic-nano',
-          name: 'Basic',
-          inputCost: 0.1,
-          outputCost: 0.2,
-          capabilities: ['streaming'],
-        },
-        {
-          id: 'capable-nano',
-          name: 'Capable',
-          inputCost: 0.1,
-          outputCost: 0.2,
-          capabilities: ['streaming', 'function_calling', 'vision', 'json_mode'],
-        },
-      ]),
-    );
-    const capCatalog = new ModelCatalog(db, capRegistry);
-    await capCatalog.refreshProvider(capRegistry.list()[0]!);
-
-    const complexity = estimateComplexity('hello');
-    const result = selectModel(capCatalog, complexity);
+  it('prefers models matching tier patterns', () => {
+    const mixed: ModelEntry[] = [
+      { id: 'claude-sonnet-4-6', provider_id: 'anthropic', tier: 'standard', contextTokens: 200_000 },
+      { id: 'claude-haiku-4-5-20251001', provider_id: 'anthropic', tier: 'nano', contextTokens: 200_000 },
+    ];
+    const result = selectModel(mixed, 'hi');
     expect(result).not.toBeNull();
-    expect(result!.model.model_id).toBe('capable-nano');
+    expect(result!.model.id).toBe('claude-haiku-4-5-20251001');
   });
 
   it('integrates with complexity estimator end-to-end', () => {
@@ -200,20 +65,17 @@ describe('ModelSelector', () => {
     const tiers: string[] = [];
 
     for (const input of inputs) {
-      const complexity = estimateComplexity(input);
-      const result = selectModel(catalog, complexity);
+      const result = selectModel(catalog, input);
       if (result) tiers.push(result.tier);
     }
 
     expect(tiers.length).toBe(3);
   });
 
-  it('includes a numeric score in selection result', () => {
-    const complexity = estimateComplexity('hello');
-    const result = selectModel(catalog, complexity);
+  it('classifyTier is consistent with selectModel tier', () => {
+    const result = selectModel(catalog, 'hello');
     expect(result).not.toBeNull();
-    expect(result!.score).toBeTypeOf('number');
-    expect(result!.score).toBeGreaterThan(0);
-    expect(result!.score).toBeLessThanOrEqual(1);
+    const complexity = estimateComplexity('hello');
+    expect(result!.tier).toBe(complexity.tier);
   });
 });

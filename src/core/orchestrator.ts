@@ -10,6 +10,7 @@ import { selectModel } from './model-selector.js';
 import { agentLoop } from './agent-loop.js';
 import { buildSystemPrompt } from './prompt-builder.js';
 import { TaskScheduler } from '../scheduler/task-scheduler.js';
+import { HeartbeatScheduler } from '../scheduler/heartbeat-scheduler.js';
 import { SkillWatcher } from './skill-watcher.js';
 import pino from 'pino';
 import { DB_PATH } from './paths.js';
@@ -49,6 +50,7 @@ class Orchestrator extends EventEmitter {
   private readonly queueConfig: Partial<QueueConfig> = { mode: 'collect', debounceMs: 1000, cap: 20, drop: 'summarize' };
   private catalog: ModelEntry[] = [];
   private scheduler: TaskScheduler | null = null;
+  private heartbeatScheduler: HeartbeatScheduler | null = null;
   private running = false;
 
   constructor(config: Partial<OrchestratorConfig> = {}) {
@@ -108,6 +110,23 @@ class Orchestrator extends EventEmitter {
     });
     this.scheduler.start();
 
+    this.heartbeatScheduler = new HeartbeatScheduler({
+      db: this.db,
+      registry: this.registry,
+      catalog: this.catalog,
+      deliver: async (groupId, text) => {
+        const prefix = groupId.split('_')[0] ?? '';
+        const targetChannel = Array.from(this.channels.values()).find(c =>
+          (prefix === 'tg' && c.id === 'telegram') ||
+          (prefix === 'dc' && c.id === 'discord') ||
+          (c.id === 'whatsapp'),
+        );
+        await targetChannel?.send({ groupId, content: text });
+      },
+      logger: this.logger,
+    });
+    this.heartbeatScheduler.start();
+
     this.processPendingIpc();
     this.logger.info('Orchestrator started — event-driven with agent loop');
   }
@@ -118,6 +137,7 @@ class Orchestrator extends EventEmitter {
     this.logger.info('Orchestrator shutting down');
 
     this.scheduler?.stop();
+    this.heartbeatScheduler?.stop();
     this.skillWatcher.close();
 
     for (const [, channel] of this.channels) {

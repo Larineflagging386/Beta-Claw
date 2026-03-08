@@ -69,7 +69,7 @@ async function startDaemon(options: { foreground?: boolean }): Promise<void> {
 
   if (options.foreground) {
     dotenv.config();
-    console.log('MicroClaw v2.0 — Starting in foreground mode...');
+    console.log('MicroClaw v3.0 — Starting in foreground mode...');
     writePid(process.pid);
 
     const { MicroClawDB } = await import('../../db.js');
@@ -142,7 +142,7 @@ async function startDaemon(options: { foreground?: boolean }): Promise<void> {
   const daemonScript = path.resolve(import.meta.dirname ?? '.', 'daemon-entry.js');
 
   if (!fs.existsSync(daemonScript)) {
-    console.log('MicroClaw v2.0 — Starting daemon...');
+    console.log('MicroClaw v3.0 — Starting daemon...');
     writePid(process.pid);
     console.log(`Daemon started (PID ${process.pid}).`);
     console.log('Run "microclaw status" to check health.');

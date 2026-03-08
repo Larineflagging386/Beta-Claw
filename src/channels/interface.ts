@@ -29,7 +29,7 @@ type Attachment = z.infer<typeof AttachmentSchema>;
 type InboundMessage = z.infer<typeof InboundMessageSchema>;
 type OutboundMessage = z.infer<typeof OutboundMessageSchema>;
 
-type ChannelFeature = 'markdown' | 'images' | 'files' | 'reactions' | 'threads' | 'webhooks';
+type ChannelFeature = 'markdown' | 'images' | 'files' | 'reactions' | 'threads' | 'typing_indicator' | 'webhooks';
 
 interface IChannel {
   id: string;

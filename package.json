@@ -1,11 +1,11 @@
 {
   "name": "microclaw",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Open, provider-agnostic AI agent runtime",
   "type": "module",
   "private": true,
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22"
   },
   "bin": {
     "microclaw": "./dist/cli/index.js"
@@ -59,7 +59,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
     "@types/hapi__boom": "^7.4.1",
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^7.0.11",
     "@types/qrcode-terminal": "^0.12.2",

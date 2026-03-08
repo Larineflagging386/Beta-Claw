@@ -260,14 +260,14 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'heartbeat',
-    description: 'Ping a URL and report whether it is up or down, along with the response latency in milliseconds.',
+    description: 'Manage the heartbeat system. now: trigger immediate tick; status: show config and recent ticks; pause: disable heartbeat for a group; resume: re-enable.',
     input_schema: {
       type: 'object',
       properties: {
-        url:     { type: 'string', description: 'URL to ping' },
-        timeout: { type: 'number', description: 'Request timeout in milliseconds (default: 5000)' },
+        action: { type: 'string', description: 'Action to perform', enum: ['now', 'status', 'pause', 'resume'] },
+        config: { type: 'string', description: 'JSON config overrides for the heartbeat (optional)' },
       },
-      required: ['url'],
+      required: ['action'],
     },
   },
 
