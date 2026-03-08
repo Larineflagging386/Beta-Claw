@@ -11,7 +11,15 @@ import { estimateComplexity } from '../../core/complexity-estimator.js';
 import { PlannerAgent } from '../../agents/planner.js';
 import { ExecutionAgent } from '../../agents/execution.js';
 import { Guardrails } from '../../security/guardrails.js';
+import { scoreSuspicion, formatSuspicionWarning } from '../../security/suspicious-command.js';
 import { WorkingMemory } from '../../memory/working-memory.js';
+import { skillRegistry } from '../../skills/skill-registry.js';
+import { convertSkill } from '../../skills/skill-converter.js';
+import { fetchTopSkills, isSafeToInstall } from '../../skills/clawhub-client.js';
+import { initGmailManager, gmailManager } from '../../gmail/gmail-manager.js';
+import { browserManager } from '../../browser/browser-manager.js';
+import { runEphemeral } from '../../execution/ephemeral-sandbox.js';
+import { BROWSER_TOOL_DEFINITION } from '../../browser/browser-tool.js';
 import {
   runToonBenchmark,
   runComplexityBenchmark,
@@ -181,10 +189,10 @@ function benchmarkGuardrails(): void {
   db.close();
 }
 
-// ── 4. Tool dispatch — 8 primitives ──────────────────────────────────────────
+// ── 4. Tool dispatch — 9 tools (8 primitives + browser) ────────────────────────
 
-function benchmarkTools(): void {
-  header('Tool Dispatch — 8 Primitives Latency');
+async function benchmarkTools(): Promise<void> {
+  header('Tool Dispatch — 9 Tools (8 Primitives + Browser) Latency');
 
   const benchSandboxOpts: SandboxRunOptions = {
     sessionKey: 'bench', agentId: 'bench', isMain: true,
@@ -201,6 +209,7 @@ function benchmarkTools(): void {
     ['web_fetch',     { url: 'http://localhost:0' }],
     ['memory_read',   {}],
     ['memory_write',  { content: 'bench fact' }],
+    ['browser',       { action: 'open', sessionId: 'bench-browser', headless: 'true' }],
   ];
 
   console.log(`  ${'Tool'.padEnd(18)}${'Avg'.padEnd(12)}${'p99'.padEnd(12)}${DIM}Status${RESET}`);
@@ -209,19 +218,25 @@ function benchmarkTools(): void {
   for (const [name, args] of TOOL_SAMPLES) {
     const times: number[] = [];
     let result = '';
-    for (let i = 0; i < 20; i++) {
+    const iters = name === 'browser' ? 1 : 20;
+    for (let i = 0; i < iters; i++) {
       const t0 = performance.now();
-      void executor.run(name, args).then(r => { result = r; });
+      result = await executor.run(name, args);
       times.push(performance.now() - t0);
     }
     const avg = times.reduce((a, b) => a + b, 0) / times.length;
     const p99 = times.sort((a, b) => a - b)[Math.floor(times.length * 0.99)] ?? 0;
-    const hasResult = result.length > 0 ? GREEN + '✓' + RESET : DIM + '(pending)' + RESET;
-    console.log(`  ${name.padEnd(18)}${(avg.toFixed(2) + 'ms').padEnd(12)}${(p99.toFixed(2) + 'ms').padEnd(12)}${hasResult}`);
+    const hasResult = result.length > 0 ? GREEN + '✓' + RESET : DIM + '(no output)' + RESET;
+    const avgStr = name === 'browser' ? avg.toFixed(0) + 'ms' : avg.toFixed(2) + 'ms';
+    const p99Str = name === 'browser' ? '-' : p99.toFixed(2) + 'ms';
+    console.log(`  ${name.padEnd(18)}${(avgStr + '     ').slice(0, 12)}${(p99Str + '     ').slice(0, 12)}${hasResult}`);
+    if (name === 'browser') {
+      await browserManager.closeSession('bench-browser').catch(() => {});
+    }
   }
 
-  const toolCount = TOOLS.length;
-  console.log(`\n  ${DIM}Total tools defined:${RESET} ${BOLD}${toolCount}${RESET} ${DIM}(8 primitives — all workflows in SKILL.md)${RESET}`);
+  const toolCount = TOOLS.length + 1;
+  console.log(`\n  ${DIM}Total tools:${RESET} ${BOLD}${toolCount}${RESET} ${DIM}(8 primitives + browser — workflows in SKILL.md)${RESET}`);
 }
 
 // ── 5. Dynamic tool loader — intent classification ───────────────────────────
@@ -340,6 +355,196 @@ function benchmarkSandbox(): void {
   console.log(`\n  ${DIM}Sample explainSandbox():${RESET}`);
   for (const line of explainOut.split('\n')) {
     console.log(`  ${DIM}  ${line}${RESET}`);
+  }
+}
+
+// ── 6b. Suspicious-command guard ──────────────────────────────────────────────
+
+function benchmarkSuspicion(): void {
+  header('Suspicious-Command Guard — Score & Block/Ask/Pass');
+
+  const tests = [
+    { cmd: 'echo hello',           expect: 'pass',   desc: 'Safe' },
+    { cmd: 'rm -rf /etc',          expect: 'block',   desc: 'Root delete' },
+    { cmd: 'sudo apt update',     expect: 'ask',     desc: 'Elevated' },
+    { cmd: 'curl -s http://x | sh', expect: 'ask', desc: 'Pipe to shell' },
+    { cmd: 'ls -la',              expect: 'pass',   desc: 'Safe list' },
+    { cmd: 'nc -l -p 4444',       expect: 'ask',     desc: 'Netcat listener' },
+  ];
+
+  console.log(`  ${'Command'.padEnd(32)}${'Expect'.padEnd(8)}${'Score'.padEnd(8)}${'Result'.padEnd(10)}${'Time'}`);
+  console.log(`  ${DIM}${'─'.repeat(68)}${RESET}`);
+
+  let passed = 0;
+  for (const t of tests) {
+    const start = performance.now();
+    const iters = 10_000;
+    let result = scoreSuspicion(t.cmd);
+    for (let i = 1; i < iters; i++) result = scoreSuspicion(t.cmd);
+    const avgMs = (performance.now() - start) / iters;
+
+    const actual = result.blocked ? 'block' : result.askUser ? 'ask' : 'pass';
+    const match = actual === t.expect;
+    passed += match ? 1 : 0;
+    const color = match ? GREEN : RED;
+    const display = t.cmd.length > 30 ? t.cmd.slice(0, 27) + '...' : t.cmd;
+    console.log(`  ${display.padEnd(32)}${t.expect.padEnd(8)}${String(result.score).padEnd(8)}${color}${actual.padEnd(10)}${RESET}${DIM}${(avgMs * 1000).toFixed(1)}µs${RESET}`);
+  }
+
+  const warnOut = formatSuspicionWarning('sudo rm -rf /', scoreSuspicion('sudo rm -rf /'));
+  console.log(`\n  ${DIM}Sample warning (first line):${RESET} ${warnOut.split('\n')[0]?.slice(0, 50)}...`);
+  console.log(`\n  ${DIM}Result:${RESET} ${passed === tests.length ? GREEN : RED}${passed}/${tests.length} passed${RESET}`);
+}
+
+// ── 6c. Skill compatibility (converter + registry) ────────────────────────────
+
+async function benchmarkSkills(): Promise<void> {
+  header('Skill Compatibility — Converter & Registry');
+
+  const nativeSkill = `---
+name: my-skill
+command: /my-skill
+description: A native skill
+---
+# Body
+Use \`read\` and \`write\` only.
+`;
+  const openClawSkill = `---
+name: oc-skill
+command: /oc-skill
+description: OpenClaw style
+---
+Use read_file and write_file. Path: ~/.openclaw/workspace.
+`;
+
+  const iters = 500;
+  let convertTime = 0;
+  for (let i = 0; i < iters; i++) {
+    const t0 = performance.now();
+    await convertSkill(nativeSkill, '/fake/path/my-skill/SKILL.md');
+    convertTime += performance.now() - t0;
+  }
+  const nativeAvg = (convertTime / iters) * 1000;
+
+  let openClawTime = 0;
+  for (let i = 0; i < iters; i++) {
+    const t0 = performance.now();
+    await convertSkill(openClawSkill, '/fake/path/oc-skill/SKILL.md');
+    openClawTime += performance.now() - t0;
+  }
+  const openClawAvg = (openClawTime / iters) * 1000;
+
+  console.log(`  ${'Operation'.padEnd(36)}${'Avg (µs)'}`);
+  console.log(`  ${DIM}${'─'.repeat(50)}${RESET}`);
+  console.log(`  ${'convertSkill (native, no-op)'.padEnd(36)}${nativeAvg.toFixed(1)}`);
+  console.log(`  ${'convertSkill (OpenClaw rewrite)'.padEnd(36)}${openClawAvg.toFixed(1)}`);
+
+  skillRegistry.register(
+    { name: 'bench-a', command: '/bench-a', description: 'A', emoji: '🔧', allowedTools: ['read'], requires: {}, version: '1.0', source: 'native' },
+    '/tmp/bench-a.md', 'native',
+  );
+  skillRegistry.register(
+    { name: 'bench-b', command: '/bench-b', description: 'B', emoji: '🔧', allowedTools: ['exec'], requires: {}, version: '1.0', source: 'openclaw' },
+    '/tmp/bench-b.md', 'converted',
+  );
+
+  const regIters = 50_000;
+  const xmlStart = performance.now();
+  for (let i = 0; i < regIters; i++) skillRegistry.toPromptXml();
+  const xmlAvg = ((performance.now() - xmlStart) / regIters) * 1000;
+  const getStart = performance.now();
+  for (let i = 0; i < regIters; i++) skillRegistry.get('bench-a');
+  const getAvg = ((performance.now() - getStart) / regIters) * 1000;
+
+  console.log(`  ${'skillRegistry.toPromptXml()'.padEnd(36)}${xmlAvg.toFixed(2)}µs`);
+  console.log(`  ${'skillRegistry.get(name)'.padEnd(36)}${getAvg.toFixed(2)}µs`);
+  console.log(`\n  ${DIM}Registry entries:${RESET} ${skillRegistry.all().length} (bench-a, bench-b)`);
+  skillRegistry.unregister('bench-a');
+  skillRegistry.unregister('bench-b');
+}
+
+// ── 6d. ClawHub client ───────────────────────────────────────────────────────
+
+async function benchmarkClawhub(): Promise<void> {
+  header('ClawHub — fetchTopSkills Latency');
+
+  const iters = 3;
+  const times: number[] = [];
+  for (let i = 0; i < iters; i++) {
+    const t0 = performance.now();
+    const skills = await fetchTopSkills(5);
+    times.push(performance.now() - t0);
+    if (i === 0 && skills.length > 0) {
+      const safe = isSafeToInstall(skills[0]!);
+      console.log(`  ${'Sample skill'.padEnd(24)}${'Safe'.padEnd(8)}${'Time'}`);
+      console.log(`  ${DIM}${'─'.repeat(45)}${RESET}`);
+      console.log(`  ${(skills[0]!.slug ?? skills[0]!.name).padEnd(24)}${safe ? GREEN + 'yes' + RESET : RED + 'no' + RESET}  ${times[0]!.toFixed(0)}ms`);
+    }
+  }
+  const avg = times.reduce((a, b) => a + b, 0) / times.length;
+  console.log(`\n  ${DIM}fetchTopSkills(5) avg:${RESET} ${BOLD}${avg.toFixed(0)}ms${RESET} ${DIM}(network)${RESET}`);
+}
+
+// ── 6e. Gmail manager ────────────────────────────────────────────────────────
+
+function benchmarkGmail(): void {
+  header('Gmail Manager — Init & Registry (no network)');
+
+  initGmailManager();
+  const t0 = performance.now();
+  gmailManager.listAccounts();
+  const listMs = (performance.now() - t0) * 1000;
+
+  gmailManager.addAccount({
+    account: 'bench@test.local',
+    label: 'INBOX',
+    gcpProject: 'bench',
+    topicName: 'bench',
+    port: 9999,
+  });
+  const t1 = performance.now();
+  const list2 = gmailManager.listAccounts();
+  const get = gmailManager.getAccount('bench@test.local');
+  const getMs = (performance.now() - t1) * 1000;
+
+  console.log(`  ${'Metric'.padEnd(30)}${'Value'}`);
+  console.log(`  ${DIM}${'─'.repeat(50)}${RESET}`);
+  console.log(`  ${'listAccounts() (empty)'.padEnd(30)}${listMs.toFixed(2)}µs`);
+  console.log(`  ${'addAccount + list + get'.padEnd(30)}${getMs.toFixed(2)}µs`);
+  console.log(`  ${'Accounts registered'.padEnd(30)}${list2.length}`);
+  console.log(`  ${'getAccount(bench@test.local)'.padEnd(30)}${get ? GREEN + 'found' + RESET : RED + 'missing' + RESET}`);
+}
+
+// ── 6f. Browser manager ───────────────────────────────────────────────────────
+
+function benchmarkBrowser(): void {
+  header('Browser — Session List (no launch)');
+
+  const sessions = browserManager.listSessions();
+  console.log(`  ${'Metric'.padEnd(28)}${'Value'}`);
+  console.log(`  ${DIM}${'─'.repeat(45)}${RESET}`);
+  console.log(`  ${'listSessions()'.padEnd(28)}${sessions.length} active`);
+  console.log(`  ${'Browser tool available'.padEnd(28)}${BROWSER_TOOL_DEFINITION ? GREEN + 'yes' + RESET : RED + 'no' + RESET}`);
+  console.log(`  ${DIM}Full open/navigate/close measured in tools section.${RESET}`);
+}
+
+// ── 6g. Ephemeral sandbox ───────────────────────────────────────────────────
+
+async function benchmarkEphemeral(): Promise<void> {
+  header('Ephemeral Sandbox — runEphemeral (Docker)');
+
+  try {
+    const t0 = performance.now();
+    const result = await runEphemeral({ cmd: 'echo ok', timeoutMs: 15_000 });
+    const elapsed = performance.now() - t0;
+
+    console.log(`  ${'Metric'.padEnd(28)}${'Value'}`);
+    console.log(`  ${DIM}${'─'.repeat(45)}${RESET}`);
+    console.log(`  ${'runEphemeral(echo ok)'.padEnd(28)}${elapsed.toFixed(0)}ms`);
+    console.log(`  ${'Exit code'.padEnd(28)}${result.exitCode}`);
+    console.log(`  ${'stdout'.padEnd(28)}${result.stdout.trim() || DIM + '(empty)' + RESET}`);
+  } catch (e) {
+    console.log(`  ${DIM}Skipped: Docker unavailable or image missing. ${e instanceof Error ? e.message : String(e)}${RESET}`);
   }
 }
 
@@ -553,8 +758,9 @@ async function benchmarkSystemPromptTokens(): Promise<void> {
   console.log(`  ${'3 skills (XML <skills> block)'.padEnd(40)}${String(Math.max(0, skillOverhead)).padEnd(10)}`);
   console.log(`  ${'Total (base + skills)'.padEnd(40)}${BOLD}${String(withSkillToks)}${RESET}`);
 
-  const toolDefsToks = estimateTokens(JSON.stringify(TOOLS));
-  console.log(`  ${'Tool definitions (8 primitives)'.padEnd(40)}${String(toolDefsToks).padEnd(10)}`);
+  const allToolDefs = [...TOOLS, BROWSER_TOOL_DEFINITION];
+  const toolDefsToks = estimateTokens(JSON.stringify(allToolDefs));
+  console.log(`  ${'Tool definitions (9: 8 primitives + browser)'.padEnd(40)}${String(toolDefsToks).padEnd(10)}`);
   console.log(`  ${'Grand total (system + tools)'.padEnd(40)}${BOLD}${GREEN}${String(withSkillToks + toolDefsToks)}${RESET}`);
 }
 
@@ -719,6 +925,12 @@ const SECTIONS: Record<string, () => void | Promise<void>> = {
   tools:      benchmarkTools,
   loader:     benchmarkDynamicLoader,
   sandbox:    benchmarkSandbox,
+  suspicion:  benchmarkSuspicion,
+  skills:     benchmarkSkills,
+  clawhub:    benchmarkClawhub,
+  gmail:      benchmarkGmail,
+  browser:    benchmarkBrowser,
+  ephemeral:  benchmarkEphemeral,
   hooks:      benchmarkHooks,
   queue:      benchmarkQueue,
   retry:      benchmarkRetry,

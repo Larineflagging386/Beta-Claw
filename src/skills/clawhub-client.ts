@@ -27,7 +27,7 @@ export async function fetchTopSkills(limit = 20): Promise<ClawHubSkill[]> {
     const data = await r.json() as { skills?: ClawHubSkill[] };
     return data.skills ?? [];
   } catch (e) {
-    console.warn('[clawhub] API fetch failed, falling back to web scrape:', e);
+    console.warn('[clawhub] API fetch failed, falling back to web scrape:', e instanceof Error ? e.message : String(e));
     return scrapeClawHub(limit);
   }
 }

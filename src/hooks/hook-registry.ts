@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'node:url';
 import { PATHS } from '../core/paths.js';
 import type { RegisteredHook, HookHandler, HookEvent, ToolResultHookHandler, ToolResultEvent } from './types.js';
 
@@ -48,7 +49,7 @@ export class HookRegistry {
     if (!meta) return;
 
     try {
-      const mod = await import(tsPath) as { default?: HookHandler; toolResultHook?: ToolResultHookHandler };
+      const mod = await import(pathToFileURL(tsPath).href) as { default?: HookHandler; toolResultHook?: ToolResultHookHandler };
       if (mod.toolResultHook) this.toolResultHooks.push(mod.toolResultHook);
       if (mod.default) {
         this.hooks.set(meta.id, { ...meta, source, enabled: false, handlerPath: tsPath, handler: mod.default });
