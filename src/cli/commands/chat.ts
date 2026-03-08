@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import dotenv from 'dotenv';
 import { MicroClawDB } from '../../db.js';
 import { DB_PATH, GROUPS_DIR, SOUL_FILENAME } from '../../core/paths.js';
+import { DEFAULT_SANDBOX_CONFIG, type SandboxRunOptions } from '../../execution/sandbox.js';
 import { ProviderRegistry } from '../../core/provider-registry.js';
 import { DEFAULT_CATALOG, type ModelEntry } from '../../core/model-catalog.js';
 import { selectModel } from '../../core/model-selector.js';
@@ -195,12 +196,17 @@ async function startChat(options: ChatOptions): Promise<void> {
     try {
       const skills = skillWatcher.listSkills();
       const systemPrompt = await buildSystemPrompt(groupId, skills);
+      const cliSandboxOpts: SandboxRunOptions = {
+        sessionKey: 'cli', agentId: 'cli', isMain: true,
+        elevated: 'off', groupId, cfg: DEFAULT_SANDBOX_CONFIG,
+      };
       const response = await agentLoop(messages, {
         provider,
         model: sel.model,
         systemPrompt,
         db,
         groupId,
+        sandboxOpts: cliSandboxOpts,
         onToolCall: (name) => process.stdout.write(`\n  \u21B3 ${name}...`),
       });
 

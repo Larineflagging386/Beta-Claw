@@ -8,7 +8,6 @@ import { DB_PATH } from '../../core/paths.js';
 import { ProviderRegistry } from '../../core/provider-registry.js';
 import { ModelCatalog } from '../../core/model-catalog.js';
 import { estimateComplexity } from '../../core/complexity-estimator.js';
-import type { ComplexityResult as _CR } from '../../core/complexity-estimator.js';
 import { PlannerAgent } from '../../agents/planner.js';
 import { ExecutionAgent } from '../../agents/execution.js';
 import { Guardrails } from '../../security/guardrails.js';
@@ -25,6 +24,10 @@ import {
 } from '../../core/metrics.js';
 import { TOOLS } from '../../core/tools.js';
 import { ToolExecutor } from '../../core/tool-executor.js';
+import { shouldSandbox, explainSandbox, DEFAULT_SANDBOX_CONFIG, type SandboxRunOptions } from '../../execution/sandbox.js';
+import { classifyIntent, getToolsForIntent, TOOL_MAP } from '../../core/dynamic-tool-loader.js';
+import { HookRegistry } from '../../hooks/hook-registry.js';
+import type { HookEvent, ToolResultEvent } from '../../hooks/types.js';
 import { MessageQueue } from '../../execution/message-queue.js';
 import { withRetry, isTransientError } from '../../execution/retry-policy.js';
 import { buildSystemPrompt, estimateSystemPromptTokens } from '../../core/prompt-builder.js';
@@ -178,37 +181,26 @@ function benchmarkGuardrails(): void {
   db.close();
 }
 
-// ── 4. Tool dispatch latency ──────────────────────────────────────────────────
+// ── 4. Tool dispatch — 8 primitives ──────────────────────────────────────────
 
 function benchmarkTools(): void {
-  header('Tool Dispatch — Error-path Latency (26 tools)');
+  header('Tool Dispatch — 8 Primitives Latency');
 
-  const db = new MicroClawDB(':memory:');
-  const executor = new ToolExecutor(db, 'bench');
+  const benchSandboxOpts: SandboxRunOptions = {
+    sessionKey: 'bench', agentId: 'bench', isMain: true,
+    elevated: 'off', groupId: 'bench', cfg: { ...DEFAULT_SANDBOX_CONFIG, mode: 'off' },
+  };
+  const executor = new ToolExecutor('bench', process.cwd(), benchSandboxOpts);
 
   const TOOL_SAMPLES: Array<[string, Record<string, unknown>]> = [
     ['read',          { path: '/nonexistent/file.txt' }],
-    ['write',         { path: 'bench-out.txt', content: 'hello' }],
-    ['append',        { path: 'bench-out.txt', content: ' world' }],
-    ['delete',        { path: 'bench-out.txt' }],
-    ['list',          { path: '.' }],
-    ['search',        { pattern: '*.nonexistent', type: 'name' }],
+    ['write',         { path: '/tmp/mc-bench-out.txt', content: 'hello' }],
     ['exec',          { cmd: 'echo bench' }],
-    ['python',        { code: 'print("bench")' }],
-    ['node',          { code: 'console.log("bench")' }],
-    ['process',       { action: 'list' }],
+    ['list',          { path: '.' }],
+    ['web_search',    { query: 'test' }],
+    ['web_fetch',     { url: 'http://localhost:0' }],
     ['memory_read',   {}],
     ['memory_write',  { content: 'bench fact' }],
-    ['memory_search', { query: 'bench' }],
-    ['session',       { action: 'get' }],
-    ['context',       { action: 'get' }],
-    ['history',       { action: 'get', limit: 5 }],
-    ['cron',          { action: 'list' }],
-    ['scheduler',     { action: 'list' }],
-    ['env',           {}],
-    ['logs',          { lines: 5 }],
-    ['config',        { action: 'get' }],
-    ['get_skill',     { command: 'nonexistent' }],
   ];
 
   console.log(`  ${'Tool'.padEnd(18)}${'Avg'.padEnd(12)}${'p99'.padEnd(12)}${DIM}Status${RESET}`);
@@ -229,11 +221,185 @@ function benchmarkTools(): void {
   }
 
   const toolCount = TOOLS.length;
-  console.log(`\n  ${DIM}Total tools defined:${RESET} ${BOLD}${toolCount}${RESET}`);
-  db.close();
+  console.log(`\n  ${DIM}Total tools defined:${RESET} ${BOLD}${toolCount}${RESET} ${DIM}(8 primitives — all workflows in SKILL.md)${RESET}`);
 }
 
-// ── 5. Queue throughput ────────────────────────────────────────────────────────
+// ── 5. Dynamic tool loader — intent classification ───────────────────────────
+
+function benchmarkDynamicLoader(): void {
+  header('Dynamic Tool Loader — Intent → Subset (<1ms target)');
+
+  const testCases = [
+    { input: 'read the config file',                   expected: 'file_ops' },
+    { input: 'write a new script to disk',             expected: 'file_ops' },
+    { input: 'list files in the current directory',    expected: 'file_ops' },
+    { input: 'run npm install',                        expected: 'exec' },
+    { input: 'execute the build script',               expected: 'exec' },
+    { input: 'compile the TypeScript project',         expected: 'exec' },
+    { input: 'search for the latest Node.js version',  expected: 'web' },
+    { input: 'fetch the API docs from that URL',       expected: 'web' },
+    { input: 'google how to use Docker volumes',       expected: 'web' },
+    { input: 'remember my preference for dark mode',   expected: 'memory' },
+    { input: 'recall what I said about tabs vs spaces', expected: 'memory' },
+    { input: 'what time is it',                        expected: 'general' },
+    { input: 'tell me a joke',                         expected: 'general' },
+  ];
+
+  console.log(`  ${'Input'.padEnd(42)}${'Intent'.padEnd(12)}${'Tools'.padEnd(14)}${'Time'}`);
+  console.log(`  ${DIM}${'─'.repeat(75)}${RESET}`);
+
+  let passed = 0;
+  for (const t of testCases) {
+    const start = performance.now();
+    const iters = 10_000;
+    let cat = classifyIntent(t.input);
+    for (let i = 1; i < iters; i++) cat = classifyIntent(t.input);
+    const avgMs = (performance.now() - start) / iters;
+
+    const tools = getToolsForIntent(cat, TOOLS);
+    const match = cat === t.expected;
+    passed += match ? 1 : 0;
+    const color = match ? GREEN : RED;
+    const display = t.input.length > 40 ? t.input.slice(0, 37) + '...' : t.input;
+    console.log(`  ${display.padEnd(42)}${color}${cat.padEnd(12)}${RESET}${String(tools.length).padEnd(14)}${DIM}${(avgMs * 1000).toFixed(1)}µs${RESET}`);
+  }
+
+  console.log(`\n  ${DIM}Accuracy:${RESET} ${passed === testCases.length ? GREEN : YELLOW}${passed}/${testCases.length}${RESET}`);
+  console.log(`  ${DIM}Intent categories:${RESET} ${Object.keys(TOOL_MAP).length} → maps to subsets of 8 primitives`);
+
+  const totalStart = performance.now();
+  for (let i = 0; i < 100_000; i++) classifyIntent('read the config file');
+  const throughput = 100_000 / ((performance.now() - totalStart) / 1000);
+  console.log(`  ${DIM}Throughput:${RESET} ${BOLD}${Math.round(throughput).toLocaleString()}${RESET} ${DIM}classify/sec${RESET}`);
+}
+
+// ── 6. Sandbox routing ───────────────────────────────────────────────────────
+
+function benchmarkSandbox(): void {
+  header('Sandbox — Mode Routing & Decision Speed');
+
+  const scenarios: Array<{ label: string; opts: SandboxRunOptions; expected: boolean }> = [
+    {
+      label: 'mode=off',
+      opts: { sessionKey: 's1', agentId: 'a1', isMain: false, elevated: 'off', groupId: 'g1',
+              cfg: { ...DEFAULT_SANDBOX_CONFIG, mode: 'off' } },
+      expected: false,
+    },
+    {
+      label: 'mode=all',
+      opts: { sessionKey: 's2', agentId: 'a2', isMain: true, elevated: 'off', groupId: 'g2',
+              cfg: { ...DEFAULT_SANDBOX_CONFIG, mode: 'all' } },
+      expected: true,
+    },
+    {
+      label: 'non-main + isMain=true',
+      opts: { sessionKey: 's3', agentId: 'a3', isMain: true, elevated: 'off', groupId: 'g3',
+              cfg: { ...DEFAULT_SANDBOX_CONFIG, mode: 'non-main' } },
+      expected: false,
+    },
+    {
+      label: 'non-main + isMain=false',
+      opts: { sessionKey: 's4', agentId: 'a4', isMain: false, elevated: 'off', groupId: 'g4',
+              cfg: { ...DEFAULT_SANDBOX_CONFIG, mode: 'non-main' } },
+      expected: true,
+    },
+    {
+      label: 'non-main + elevated=on',
+      opts: { sessionKey: 's5', agentId: 'a5', isMain: false, elevated: 'on', groupId: 'g5',
+              cfg: { ...DEFAULT_SANDBOX_CONFIG, mode: 'non-main' } },
+      expected: false,
+    },
+    {
+      label: 'non-main + elevated=full',
+      opts: { sessionKey: 's6', agentId: 'a6', isMain: false, elevated: 'full', groupId: 'g6',
+              cfg: { ...DEFAULT_SANDBOX_CONFIG, mode: 'non-main' } },
+      expected: false,
+    },
+  ];
+
+  console.log(`  ${'Scenario'.padEnd(30)}${'Sandboxed'.padEnd(12)}${'Match'.padEnd(10)}${'Time'}`);
+  console.log(`  ${DIM}${'─'.repeat(60)}${RESET}`);
+
+  let passed = 0;
+  for (const s of scenarios) {
+    const iters = 100_000;
+    const start = performance.now();
+    let result = false;
+    for (let i = 0; i < iters; i++) result = shouldSandbox(s.opts);
+    const avgMs = (performance.now() - start) / iters;
+
+    const match = result === s.expected;
+    passed += match ? 1 : 0;
+    const color = match ? GREEN : RED;
+    console.log(`  ${s.label.padEnd(30)}${String(result).padEnd(12)}${color}${String(match).padEnd(10)}${RESET}${DIM}${(avgMs * 1000).toFixed(2)}ns${RESET}`);
+  }
+
+  console.log(`\n  ${DIM}Result:${RESET} ${passed === scenarios.length ? GREEN : RED}${passed}/${scenarios.length} passed${RESET}`);
+
+  const explainOut = explainSandbox(scenarios[3]!.opts);
+  console.log(`\n  ${DIM}Sample explainSandbox():${RESET}`);
+  for (const line of explainOut.split('\n')) {
+    console.log(`  ${DIM}  ${line}${RESET}`);
+  }
+}
+
+// ── 7. Hooks system ──────────────────────────────────────────────────────────
+
+async function benchmarkHooks(): Promise<void> {
+  header('Hooks — Load, Fire & Tool-Result Processing');
+
+  const registry = new HookRegistry();
+  const t0 = performance.now();
+  await registry.load();
+  const loadMs = performance.now() - t0;
+
+  const hooks = registry.list();
+  const enabled = hooks.filter(h => h.enabled);
+  const bundled = hooks.filter(h => h.source === 'bundled');
+
+  console.log(`  ${'Metric'.padEnd(30)}${'Value'}`);
+  console.log(`  ${DIM}${'─'.repeat(50)}${RESET}`);
+  console.log(`  ${'Load time'.padEnd(30)}${loadMs.toFixed(2)}ms`);
+  console.log(`  ${'Hooks loaded'.padEnd(30)}${hooks.length}`);
+  console.log(`  ${'Bundled'.padEnd(30)}${bundled.length}`);
+  console.log(`  ${'Enabled'.padEnd(30)}${enabled.length}`);
+
+  for (const h of hooks) {
+    const status = h.enabled ? `${GREEN}on${RESET}` : `${DIM}off${RESET}`;
+    console.log(`  ${'  ' + h.emoji + ' ' + h.name.padEnd(26)}${status}  ${DIM}${h.source}${RESET}`);
+  }
+
+  const fireEvent: HookEvent = {
+    type: 'command', action: 'new', sessionKey: 'bench',
+    timestamp: new Date(), messages: [],
+    context: { groupId: 'bench', sessionId: 'bench-sess' },
+  };
+
+  const iters = 1_000;
+  const fireStart = performance.now();
+  for (let i = 0; i < iters; i++) {
+    await registry.fire(fireEvent);
+  }
+  const fireAvg = (performance.now() - fireStart) / iters;
+  console.log(`\n  ${'fire(command:new) avg'.padEnd(30)}${fireAvg.toFixed(3)}ms`);
+
+  const toolEvent: ToolResultEvent = {
+    type: 'tool_result', toolName: 'exec',
+    result: 'stdout:\nBEARER sk-1234567890abcdefghijklmnop result ok',
+    sessionKey: 'bench',
+  };
+
+  const trStart = performance.now();
+  let redacted: unknown = toolEvent.result;
+  for (let i = 0; i < iters; i++) {
+    redacted = registry.applyToolResult(toolEvent);
+  }
+  const trAvg = (performance.now() - trStart) / iters;
+  const wasRedacted = typeof redacted === 'string' && redacted.includes('[REDACTED]');
+  console.log(`  ${'applyToolResult avg'.padEnd(30)}${trAvg.toFixed(3)}ms ${wasRedacted ? GREEN + '(redacted)' + RESET : RED + '(NOT redacted)' + RESET}`);
+}
+
+// ── 8. Queue throughput ──────────────────────────────────────────────────────
 
 async function benchmarkQueue(): Promise<void> {
   header('MessageQueue — Throughput & Lane Isolation');
@@ -264,10 +430,8 @@ async function benchmarkQueue(): Promise<void> {
     timestamp: Date.now(),
   });
 
-  // Single-lane throughput
   const t0 = performance.now();
   for (let i = 0; i < N; i++) mq.enqueue(makeMsg('grp1', i), fakeChannel);
-  // Wait for drain
   await new Promise(r => setTimeout(r, 200));
   const singleLaneMs = performance.now() - t0;
   const singleLaneRate = processed.length / (singleLaneMs / 1000);
@@ -277,7 +441,6 @@ async function benchmarkQueue(): Promise<void> {
   console.log(`  ${'Single lane (50 msg)'.padEnd(30)}${Math.round(singleLaneRate)} msg/sec`);
   console.log(`  ${'Messages processed'.padEnd(30)}${processed.length}/${N}`);
 
-  // Multi-lane isolation
   const processed2: Set<string> = new Set();
   const mq2 = new MessageQueue();
   mq2.setHandler(async (entry) => { processed2.add(entry.laneId); });
@@ -294,7 +457,6 @@ async function benchmarkQueue(): Promise<void> {
   console.log(`  ${'Multi-lane (5×10 msg)'.padEnd(30)}${Math.round(50 / (multiMs / 1000))} msg/sec`);
   console.log(`  ${'Distinct lanes active'.padEnd(30)}${processed2.size}/5`);
 
-  // Overflow test
   const mq3 = new MessageQueue();
   let overflowProcessed = 0;
   mq3.setHandler(async () => { overflowProcessed++; });
@@ -306,7 +468,7 @@ async function benchmarkQueue(): Promise<void> {
   console.log(`\n  ${DIM}Failed entries:${RESET} ${mq.getFailedEntries().length}`);
 }
 
-// ── 6. Retry policy ─────────────────────────────────────────────────────────
+// ── 9. Retry policy ──────────────────────────────────────────────────────────
 
 async function benchmarkRetry(): Promise<void> {
   header('RetryPolicy — Backoff Timing & Attempt Counting');
@@ -342,7 +504,7 @@ async function benchmarkRetry(): Promise<void> {
   }
 }
 
-// ── 7. Memory injection tokens ───────────────────────────────────────────────
+// ── 10. Memory injection tokens ──────────────────────────────────────────────
 
 function benchmarkMemoryInjection(): void {
   header('Memory Injection — Full File vs FTS5 Selective');
@@ -357,41 +519,46 @@ function benchmarkMemoryInjection(): void {
   const selectiveTokens = estimateTokens(selectiveMemory);
   const savings = ((fullTokens - selectiveTokens) / fullTokens) * 100;
 
-  console.log(`  ${'Method'.padEnd(25)}${'Tokens'.padEnd(10)}${'Chars'.padEnd(10)}`);
-  console.log(`  ${DIM}${'─'.repeat(45)}${RESET}`);
-  console.log(`  ${'Full memory.md (50 facts)'.padEnd(25)}${String(fullTokens).padEnd(10)}${String(fullMemory.length).padEnd(10)}`);
-  console.log(`  ${'FTS5 selective (5 facts)'.padEnd(25)}${String(selectiveTokens).padEnd(10)}${String(selectiveMemory.length).padEnd(10)}`);
+  console.log(`  ${'Method'.padEnd(30)}${'Tokens'.padEnd(10)}${'Chars'.padEnd(10)}`);
+  console.log(`  ${DIM}${'─'.repeat(50)}${RESET}`);
+  console.log(`  ${'Full MEMORY.md (50 facts)'.padEnd(30)}${String(fullTokens).padEnd(10)}${String(fullMemory.length).padEnd(10)}`);
+  console.log(`  ${'FTS5 selective (5 facts)'.padEnd(30)}${String(selectiveTokens).padEnd(10)}${String(selectiveMemory.length).padEnd(10)}`);
   console.log(`\n  ${BOLD}${GREEN}Token savings: ${savings.toFixed(1)}%${RESET} per request`);
   console.log(`  ${DIM}At 10 req/min: ~${Math.round((fullTokens - selectiveTokens) * 10 * 60 * 24 / 1000)}K tokens/day saved${RESET}`);
 }
 
-// ── 8. System prompt tokens ───────────────────────────────────────────────────
+// ── 11. System prompt tokens ─────────────────────────────────────────────────
 
 async function benchmarkSystemPromptTokens(): Promise<void> {
-  header('System Prompt — Token Budget Breakdown');
+  header('System Prompt — Token Budget (XML skill injection)');
 
-  const withMemory = await buildSystemPrompt('default', [
-    { name: 'Status', command: 'status', description: 'Show system status', version: '1.0', author: 'bench', content: '' },
-  ]);
-  const noMemory = await buildSystemPrompt('default', []);
+  const withSkill = await buildSystemPrompt({
+    groupId: 'default',
+    skills: [
+      { name: 'status', command: 'status', description: 'Show system status', version: '1.0', author: 'bench', content: '' },
+      { name: 'git', command: 'git', description: 'Perform git operations', version: '1.0', author: 'bench', content: '' },
+      { name: 'docker', command: 'docker', description: 'Manage Docker containers', version: '1.0', author: 'bench', content: '' },
+    ],
+  });
+  const noSkills = await buildSystemPrompt({ groupId: 'default' });
 
-  const withMemoryToks = estimateSystemPromptTokens(withMemory);
-  const noMemoryToks   = estimateSystemPromptTokens(noMemory);
+  const withSkillToks = estimateSystemPromptTokens(withSkill);
+  const noSkillsToks  = estimateSystemPromptTokens(noSkills);
 
-  const skillMemToks = withMemoryToks - noMemoryToks;
+  const skillOverhead = withSkillToks - noSkillsToks;
 
-  console.log(`  ${'Component'.padEnd(35)}${'Tokens'.padEnd(10)}`);
-  console.log(`  ${DIM}${'─'.repeat(45)}${RESET}`);
-  console.log(`  ${'Base (no memory, no skills)'.padEnd(35)}${String(noMemoryToks).padEnd(10)}`);
-  console.log(`  ${'With 1 skill'.padEnd(35)}${String(Math.max(0, skillMemToks)).padEnd(10)}`);
-  console.log(`  ${'Total (base + skill)'.padEnd(35)}${BOLD}${String(withMemoryToks)}${RESET}`);
+  console.log(`  ${'Component'.padEnd(40)}${'Tokens'.padEnd(10)}`);
+  console.log(`  ${DIM}${'─'.repeat(50)}${RESET}`);
+  console.log(`  ${'Base (no skills)'.padEnd(40)}${String(noSkillsToks).padEnd(10)}`);
+  console.log(`  ${'3 skills (XML <skills> block)'.padEnd(40)}${String(Math.max(0, skillOverhead)).padEnd(10)}`);
+  console.log(`  ${'Total (base + skills)'.padEnd(40)}${BOLD}${String(withSkillToks)}${RESET}`);
 
   const toolDefsToks = estimateTokens(JSON.stringify(TOOLS));
-  console.log(`  ${'Tool definitions (passed separately)'.padEnd(35)}${String(toolDefsToks).padEnd(10)}`);
-  console.log(`  ${'Grand total (system + tools)'.padEnd(35)}${BOLD}${GREEN}${String(withMemoryToks + toolDefsToks)}${RESET}`);
+  console.log(`  ${'Tool definitions (8 primitives)'.padEnd(40)}${String(toolDefsToks).padEnd(10)}`);
+  console.log(`  ${'Grand total (system + tools)'.padEnd(40)}${BOLD}${GREEN}${String(withSkillToks + toolDefsToks)}${RESET}`);
 }
 
-// ── 9. Working memory ────────────────────────────────────────────────────────
+// ── 12. Working memory ───────────────────────────────────────────────────────
 
 function benchmarkWorkingMemory(): void {
   header('Working Memory — Budget & Compaction');
@@ -419,7 +586,7 @@ function benchmarkWorkingMemory(): void {
   }
 }
 
-// ── 10. Model catalog ─────────────────────────────────────────────────────────
+// ── 13. Model catalog ────────────────────────────────────────────────────────
 
 async function benchmarkModels(registry: ProviderRegistry, catalog: ModelCatalog): Promise<void> {
   header('Model Catalog — Available Models & Pricing');
@@ -453,7 +620,7 @@ async function benchmarkModels(registry: ProviderRegistry, catalog: ModelCatalog
   console.log(`\n  ${DIM}Total:${RESET} ${BOLD}${models.length}${RESET} ${DIM}models / ${registry.size()} providers${RESET}`);
 }
 
-// ── 11. Agent pipeline dry-run ────────────────────────────────────────────────
+// ── 14. Agent pipeline dry-run ───────────────────────────────────────────────
 
 async function benchmarkPipeline(): Promise<void> {
   header('Agent Pipeline — Dry Run Latency');
@@ -473,8 +640,8 @@ async function benchmarkPipeline(): Promise<void> {
   steps.push({ step: 'Planner', durationMs: performance.now() - t1, tokensUsed: planResult.tokensUsed });
 
   const t2 = performance.now();
-  const executor = new ExecutionAgent();
-  const execResult = await executor.execute({ id: 'b-exec', type: 'execution', brief: testInput, groupId, sessionId });
+  const execAgent = new ExecutionAgent();
+  const execResult = await execAgent.execute({ id: 'b-exec', type: 'execution', brief: testInput, groupId, sessionId });
   steps.push({ step: 'Execution', durationMs: performance.now() - t2, tokensUsed: execResult.tokensUsed });
 
   const db2 = new MicroClawDB(':memory:');
@@ -488,13 +655,22 @@ async function benchmarkPipeline(): Promise<void> {
   const toks = estimateTokens(testInput);
   steps.push({ step: 'Token est.', durationMs: performance.now() - t4, tokensUsed: toks });
 
-  // NEW: measure new tool dispatch step
-  const db3 = new MicroClawDB(':memory:');
-  const toolExec = new ToolExecutor(db3, groupId);
   const t5 = performance.now();
+  classifyIntent(testInput);
+  steps.push({ step: 'Intent classify', durationMs: performance.now() - t5, tokensUsed: 0 });
+
+  const pipelineSandboxOpts: SandboxRunOptions = {
+    sessionKey: 'bench', agentId: 'bench', isMain: true,
+    elevated: 'off', groupId, cfg: { ...DEFAULT_SANDBOX_CONFIG, mode: 'off' },
+  };
+  const toolExec = new ToolExecutor(groupId, process.cwd(), pipelineSandboxOpts);
+  const t6 = performance.now();
   await toolExec.run('exec', { cmd: 'echo pipeline-bench' });
-  steps.push({ step: 'Tool exec (exec)', durationMs: performance.now() - t5, tokensUsed: 0 });
-  db3.close();
+  steps.push({ step: 'Tool exec (exec)', durationMs: performance.now() - t6, tokensUsed: 0 });
+
+  const t7 = performance.now();
+  shouldSandbox(pipelineSandboxOpts);
+  steps.push({ step: 'Sandbox routing', durationMs: performance.now() - t7, tokensUsed: 0 });
 
   console.log(`  ${DIM}Input:${RESET} "${testInput}" ${DIM}(complexity: ${complexity.score}/${complexity.tier})${RESET}\n`);
   const totalMs = steps.reduce((s, p) => s + p.durationMs, 0);
@@ -510,7 +686,7 @@ async function benchmarkPipeline(): Promise<void> {
   console.log(`  ${'TOTAL'.padEnd(20)}${BOLD}${formatDuration(totalMs)}${RESET}`);
 }
 
-// ── 12. System info ────────────────────────────────────────────────────────────
+// ── 15. System info ──────────────────────────────────────────────────────────
 
 function benchmarkSystem(): void {
   header('System — Runtime & Resources');
@@ -534,13 +710,16 @@ function benchmarkSystem(): void {
   console.log(`  ${'Uptime'.padEnd(20)}${formatDuration(process.uptime() * 1000)}`);
 }
 
-// ── Section map ────────────────────────────────────────────────────────────────
+// ── Section map ──────────────────────────────────────────────────────────────
 
 const SECTIONS: Record<string, () => void | Promise<void>> = {
   toon:       benchmarkToon,
   complexity: benchmarkComplexity,
   guardrails: benchmarkGuardrails,
   tools:      benchmarkTools,
+  loader:     benchmarkDynamicLoader,
+  sandbox:    benchmarkSandbox,
+  hooks:      benchmarkHooks,
   queue:      benchmarkQueue,
   retry:      benchmarkRetry,
   memory:     benchmarkMemoryInjection,
@@ -550,12 +729,12 @@ const SECTIONS: Record<string, () => void | Promise<void>> = {
   system:     benchmarkSystem,
 };
 
-// ── Main runner ────────────────────────────────────────────────────────────────
+// ── Main runner ──────────────────────────────────────────────────────────────
 
 async function runFullBenchmark(opts: { section?: string }): Promise<void> {
   dotenv.config();
 
-  console.log(`\n${BOLD}${WHITE}  MicroClaw Benchmark Suite v2${RESET}`);
+  console.log(`\n${BOLD}${WHITE}  MicroClaw Benchmark Suite v3${RESET}`);
   console.log(`${DIM}  Sections: ${Object.keys(SECTIONS).join(', ')}${RESET}`);
 
   const section = opts.section?.toLowerCase();
@@ -568,7 +747,6 @@ async function runFullBenchmark(opts: { section?: string }): Promise<void> {
     }
     await fn();
   } else {
-    // Run all except models (requires live providers)
     for (const [key, fn] of Object.entries(SECTIONS)) {
       if (key === 'models') continue;
       await fn();
@@ -597,7 +775,7 @@ async function runFullBenchmark(opts: { section?: string }): Promise<void> {
 }
 
 const benchmarkCommand = new Command('benchmark')
-  .description('Run comprehensive performance benchmark')
+  .description('Run comprehensive performance benchmark (v3)')
   .option(
     '-s, --section <name>',
     `Run specific section: ${Object.keys(SECTIONS).join(', ')}, models`,

@@ -1,6 +1,17 @@
 import Database from 'better-sqlite3';
+import fs from 'node:fs';
 import { z } from 'zod';
 import path from 'node:path';
+import { PATHS } from './core/paths.js';
+
+let _dbInstance: MicroClawDB | null = null;
+
+export function getDB(profile: ResourceProfile = 'standard'): MicroClawDB {
+  if (_dbInstance) return _dbInstance;
+  fs.mkdirSync(PATHS.micro, { recursive: true });
+  _dbInstance = new MicroClawDB(PATHS.db, profile);
+  return _dbInstance;
+}
 
 const MessageSchema = z.object({
   id: z.string(),
@@ -307,12 +318,14 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
 class MicroClawDB {
   readonly db: Database.Database;
 
-  constructor(dbPath: string, profile: ResourceProfile = 'standard') {
+  constructor(dbPath: string = PATHS.db, profile: ResourceProfile = 'standard') {
     const resolvedPath = path.resolve(dbPath);
-    this.db = new Database(resolvedPath);
+    fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
+    this.db = new Database(resolvedPath, { timeout: 5000 });
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('foreign_keys = ON');
     this.db.pragma(`cache_size = ${CACHE_SIZES[profile]}`);
+    this.db.pragma('synchronous = NORMAL');
     this.db.exec(SCHEMA_SQL);
   }
 

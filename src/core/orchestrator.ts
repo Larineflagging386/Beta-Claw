@@ -18,6 +18,18 @@ import { MessageQueue, type QueueConfig } from '../execution/message-queue.js';
 import { withRetry, getRetryConfig } from '../execution/retry-policy.js';
 import { suggestWebSearch } from './complexity-estimator.js';
 import { extractAndPersist } from '../memory/post-turn-extractor.js';
+import { hookRegistry } from '../hooks/hook-registry.js';
+import { stopAllContainers, DEFAULT_SANDBOX_CONFIG, type SandboxRunOptions } from '../execution/sandbox.js';
+import { z } from 'zod';
+
+const InboundMessageSchema = z.object({
+  id: z.string(),
+  groupId: z.string(),
+  senderId: z.string(),
+  content: z.string(),
+  timestamp: z.number(),
+  replyToId: z.string().optional(),
+});
 
 interface OrchestratorEvent {
   type: 'message' | 'scheduled_task' | 'webhook' | 'ipc' | 'skill_reload' | 'shutdown';
@@ -69,10 +81,14 @@ class Orchestrator extends EventEmitter {
         return `Error: ${e instanceof Error ? e.message : String(e)}`;
       });
       const retryCfg = getRetryConfig(ch.id);
-      await withRetry(
-        () => ch.send({ groupId: msg.groupId, content: response }),
-        retryCfg,
-      );
+      try {
+        await withRetry(
+          () => ch.send({ groupId: msg.groupId, content: response }),
+          retryCfg,
+        );
+      } catch (e) {
+        this.logger.error({ err: e, channel: ch.id, groupId: msg.groupId }, 'Send failed — logged, not rethrown');
+      }
     });
 
     this.on('event', (event: OrchestratorEvent) => {
@@ -91,6 +107,11 @@ class Orchestrator extends EventEmitter {
 
     for (const [, channel] of this.channels) {
       channel.onMessage((msg: InboundMessage) => {
+        const parsed = InboundMessageSchema.safeParse(msg);
+        if (!parsed.success) {
+          this.logger.warn({ err: parsed.error }, 'Invalid message dropped');
+          return;
+        }
         this.enqueue(msg, channel);
       });
       await channel.connect();
@@ -129,6 +150,13 @@ class Orchestrator extends EventEmitter {
     });
     this.heartbeatScheduler.start();
 
+    // Load hooks and fire gateway:startup
+    await hookRegistry.load();
+    await hookRegistry.fire({
+      type: 'gateway', action: 'startup', sessionKey: 'main',
+      timestamp: new Date(), messages: [], context: {},
+    });
+
     this.processPendingIpc();
     this.logger.info('Orchestrator started — event-driven with agent loop');
   }
@@ -146,6 +174,7 @@ class Orchestrator extends EventEmitter {
       await channel.disconnect();
     }
 
+    await stopAllContainers();
     this.db.close();
     this.emit('event', {
       type: 'shutdown',
@@ -187,6 +216,17 @@ class Orchestrator extends EventEmitter {
     return this.messageQueue.stats();
   }
 
+  private buildSandboxOpts(groupId: string, sessionKey: string, isMain: boolean): SandboxRunOptions {
+    return {
+      sessionKey,
+      agentId:  'main',
+      isMain,
+      elevated: 'off',
+      groupId,
+      cfg:      DEFAULT_SANDBOX_CONFIG,
+    };
+  }
+
   private enqueue(msg: InboundMessage, channel: IChannel): void {
     this.messageQueue.enqueue(msg, channel, this.queueConfig);
   }
@@ -207,7 +247,6 @@ class Orchestrator extends EventEmitter {
 
     this.db.updateGroupLastActive(msg.groupId);
 
-    // Load up to 40 messages and let trimHistory budget them down to fit token limits
     const history = this.db.getMessages(msg.groupId, 40);
     const messages = history.map(m => ({
       role: (m.sender_id === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
@@ -220,13 +259,21 @@ class Orchestrator extends EventEmitter {
     const provider = this.registry.get(sel.model.provider_id);
     if (!provider) return `Provider ${sel.model.provider_id} not connected.`;
 
-    // Get last assistant reply for topic-shift detection
     const recentHistory = this.db.getMessages(msg.groupId, 5);
     const lastAssistantMsg = [...recentHistory].reverse().find(m => m.sender_id === 'assistant')?.content;
 
     const toolHint = suggestWebSearch(msg.content, lastAssistantMsg);
 
     const skills = this.skillWatcher.listSkills();
+
+    // Fire agent:bootstrap hook
+    const bootstrapFiles: Array<{ path: string; content: string }> = [];
+    await hookRegistry.fire({
+      type: 'agent', action: 'bootstrap',
+      sessionKey: msg.senderId, timestamp: new Date(), messages: [],
+      context: { groupId: msg.groupId, bootstrapFiles },
+    });
+
     const systemPrompt = await buildSystemPrompt({
       groupId: msg.groupId,
       skills,
@@ -237,6 +284,10 @@ class Orchestrator extends EventEmitter {
       lastAssistantMessage: lastAssistantMsg,
     });
 
+    const sessionKey = `${channel.id}-${msg.groupId}`;
+    const isMain = channel.id === 'cli';
+    const sandboxOpts = this.buildSandboxOpts(msg.groupId, sessionKey, isMain);
+
     const response = await agentLoop(messages, {
       provider,
       model: sel.model,
@@ -244,8 +295,9 @@ class Orchestrator extends EventEmitter {
       db: this.db,
       groupId: msg.groupId,
       senderId: msg.senderId,
+      sessionKey,
+      sandboxOpts,
       onToolCall: (name) => this.logger.info({ tool: name }, 'Tool called'),
-      onCronChange: () => this.scheduler?.refresh(),
     });
 
     const responseId = randomUUID();
@@ -259,7 +311,6 @@ class Orchestrator extends EventEmitter {
       processed: 1,
     });
 
-    // Fire-and-forget post-turn extraction (Phase 1/2/3/6)
     void extractAndPersist({
       userMsg: msg.content,
       assistantReply: response,
@@ -308,6 +359,10 @@ class Orchestrator extends EventEmitter {
     }
   }
 }
+
+// Cleanup on process exit
+process.on('SIGTERM', async () => { await stopAllContainers(); process.exit(0); });
+process.on('SIGINT',  async () => { await stopAllContainers(); process.exit(0); });
 
 export { Orchestrator };
 export type { OrchestratorEvent, OrchestratorConfig };

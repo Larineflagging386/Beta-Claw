@@ -1,237 +1,184 @@
-import { execFile } from 'node:child_process';
-import { z } from 'zod';
+import { spawnSync, type SpawnSyncReturns } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { PATHS } from '../core/paths.js';
 
-const SandboxConfigSchema = z.object({
-  preferredRuntime: z.enum(['docker', 'nsjail', 'none']).default('docker'),
-  dockerImage: z.string().default('node:20-slim'),
-  timeoutMs: z.number().int().min(100).default(30_000),
-  memoryLimitMb: z.number().int().min(16).default(256),
-  networkEnabled: z.boolean().default(false),
-  allowDirectExec: z.boolean().default(false),
-});
+export type SandboxMode      = 'off' | 'non-main' | 'all';
+export type SandboxScope     = 'session' | 'agent' | 'shared';
+export type WorkspaceAccess  = 'none' | 'ro' | 'rw';
+export type ElevatedLevel    = 'off' | 'on' | 'full';
 
-type SandboxConfig = z.infer<typeof SandboxConfigSchema>;
-
-interface ExecResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-  durationMs: number;
+export interface SandboxConfig {
+  mode:            SandboxMode;
+  scope:           SandboxScope;
+  workspaceAccess: WorkspaceAccess;
+  image:           string;
+  network:         string;
+  readOnlyRoot:    boolean;
+  binds:           string[];
+  setupCommand?:   string;
+  env:             Record<string, string>;
 }
 
-interface ExecOptions {
-  timeoutMs?: number;
-  env?: Record<string, string>;
-  cwd?: string;
+export interface SandboxRunOptions {
+  sessionKey: string;
+  agentId:    string;
+  isMain:     boolean;
+  elevated:   ElevatedLevel;
+  groupId:    string;
+  cfg:        SandboxConfig;
 }
 
-const DESTRUCTIVE_PATTERNS: ReadonlyArray<RegExp> = [
-  /\brm\s+(-[a-zA-Z]*\s+)*\//,
-  /\bmkfs\b/,
-  /\bdd\s+/,
-  />\s*\/dev\//,
-  /\bshutdown\b/,
-  /\breboot\b/,
-  /\bsystemctl\s+(stop|disable|mask)\b/,
-];
+const activeContainers = new Map<string, string>();
+const SHARED_KEY = 'microclaw-sandbox-shared';
 
-type SandboxType = 'docker' | 'nsjail' | 'none';
+export function shouldSandbox(opts: SandboxRunOptions): boolean {
+  if (opts.cfg.mode === 'off')  return false;
+  if (opts.cfg.mode === 'all')  return true;
+  if (opts.isMain)              return false;
+  if (opts.elevated === 'on' || opts.elevated === 'full') return false;
+  return true;
+}
 
-export class Sandbox {
-  private readonly config: SandboxConfig;
-  private detectedType: SandboxType | null = null;
+export async function sandboxedExec(
+  cmd: string,
+  cwd: string,
+  opts: SandboxRunOptions,
+  timeoutMs = 30_000,
+): Promise<string> {
+  return shouldSandbox(opts)
+    ? dockerExec(cmd, opts, timeoutMs)
+    : hostExec(cmd, cwd, timeoutMs);
+}
 
-  constructor(config?: Partial<SandboxConfig>) {
-    this.config = SandboxConfigSchema.parse(config ?? {});
+function hostExec(cmd: string, cwd: string, timeoutMs: number): string {
+  const r = spawnSync('bash', ['-c', cmd], {
+    encoding: 'utf-8', timeout: timeoutMs, cwd, env: process.env,
+  });
+  return fmt(r);
+}
+
+function dockerExec(cmd: string, opts: SandboxRunOptions, timeoutMs: number): string {
+  const id = ensureContainer(opts);
+  if (!id) return 'Sandbox unavailable: Docker not found or image not built.\nRun: microclaw sandbox setup';
+  const r = spawnSync('docker', ['exec', id, 'bash', '-c', cmd], {
+    encoding: 'utf-8', timeout: timeoutMs, env: process.env,
+  });
+  return fmt(r);
+}
+
+function ensureContainer(opts: SandboxRunOptions): string | null {
+  const key = containerKey(opts);
+  if (activeContainers.has(key)) return activeContainers.get(key)!;
+  if (!dockerAvailable())        return null;
+
+  const { cfg, groupId } = opts;
+  const sandboxDir = path.join(PATHS.sandboxes, key);
+  fs.mkdirSync(sandboxDir, { recursive: true });
+
+  const args = buildRunArgs(cfg, sandboxDir, groupId, key);
+  const r = spawnSync('docker', args, { encoding: 'utf-8', timeout: 30_000 });
+  if (r.status !== 0) {
+    console.error('[sandbox] Failed to start container:', r.stderr?.trim());
+    return null;
   }
 
-  async exec(command: string, options?: ExecOptions): Promise<ExecResult> {
-    const CommandSchema = z.string().min(1);
-    CommandSchema.parse(command);
+  const id = r.stdout.trim();
+  activeContainers.set(key, id);
 
-    const timeout = options?.timeoutMs ?? this.config.timeoutMs;
-    const sandboxType = await this.detectType();
-
-    switch (sandboxType) {
-      case 'docker':
-        return this.execDocker(command, timeout, options);
-      case 'nsjail':
-        return this.execNsjail(command, timeout, options);
-      case 'none':
-        return this.execDirect(command, timeout, options);
-    }
-  }
-
-  async isAvailable(): Promise<boolean> {
-    const type = await this.detectType();
-    return type !== 'none';
-  }
-
-  getType(): string {
-    return this.detectedType ?? 'unknown';
-  }
-
-  getConfig(): Readonly<SandboxConfig> {
-    return this.config;
-  }
-
-  private async detectType(): Promise<SandboxType> {
-    if (this.detectedType !== null) return this.detectedType;
-
-    if (this.config.preferredRuntime === 'none') {
-      this.detectedType = 'none';
-      return 'none';
-    }
-
-    if (this.config.preferredRuntime === 'docker') {
-      if (await this.checkBinaryExists('docker')) {
-        this.detectedType = 'docker';
-        return 'docker';
-      }
-      if (await this.checkBinaryExists('nsjail')) {
-        this.detectedType = 'nsjail';
-        return 'nsjail';
-      }
-    }
-
-    if (this.config.preferredRuntime === 'nsjail') {
-      if (await this.checkBinaryExists('nsjail')) {
-        this.detectedType = 'nsjail';
-        return 'nsjail';
-      }
-      if (await this.checkBinaryExists('docker')) {
-        this.detectedType = 'docker';
-        return 'docker';
-      }
-    }
-
-    this.detectedType = 'none';
-    return 'none';
-  }
-
-  private checkBinaryExists(binary: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      execFile('which', [binary], (error) => {
-        resolve(error === null);
-      });
+  if (cfg.setupCommand) {
+    spawnSync('docker', ['exec', id, 'sh', '-lc', cfg.setupCommand], {
+      encoding: 'utf-8', timeout: 60_000,
     });
   }
 
-  private execDocker(command: string, timeout: number, options?: ExecOptions): Promise<ExecResult> {
-    const args = [
-      'run', '--rm',
-      '--memory', `${this.config.memoryLimitMb}m`,
-      ...(this.config.networkEnabled ? [] : ['--network', 'none']),
-    ];
+  return id;
+}
 
-    if (options?.env) {
-      for (const [key, value] of Object.entries(options.env)) {
-        args.push('-e', `${key}=${value}`);
-      }
-    }
+function buildRunArgs(cfg: SandboxConfig, sandboxDir: string, groupId: string, key: string): string[] {
+  const args = [
+    'run', '-d',
+    '--name', `mc-${key.slice(0, 20)}`,
+    '--rm',
+    '--network', cfg.network,
+    '--workdir', '/workspace',
+    '-v', `${sandboxDir}:/workspace:rw`,
+    '--memory', '256m',
+    '--cpus',   '0.5',
+    '--pids-limit', '64',
+  ];
 
-    if (options?.cwd) {
-      args.push('-w', options.cwd);
-    }
+  const groupDir = path.join(PATHS.groups, groupId);
+  if      (cfg.workspaceAccess === 'ro') args.push('-v', `${groupDir}:/agent:ro`);
+  else if (cfg.workspaceAccess === 'rw') args.push('-v', `${groupDir}:/workspace:rw`);
 
-    args.push(this.config.dockerImage, 'sh', '-c', command);
-
-    return this.runProcess('docker', args, timeout);
+  const skillsDir = path.resolve(PATHS.skills);
+  if (cfg.workspaceAccess === 'none' && fs.existsSync(skillsDir)) {
+    args.push('-v', `${skillsDir}:/workspace/skills:ro`);
   }
 
-  private execNsjail(command: string, timeout: number, _options?: ExecOptions): Promise<ExecResult> {
-    const args = [
-      '--mode', 'o',
-      '--time_limit', String(Math.ceil(timeout / 1000)),
-      '--rlimit_as', String(this.config.memoryLimitMb),
-      '--', '/bin/sh', '-c', command,
-    ];
+  for (const bind of cfg.binds) args.push('-v', bind);
 
-    return this.runProcess('nsjail', args, timeout);
+  if (cfg.readOnlyRoot) {
+    args.push('--read-only');
+    args.push('--tmpfs', '/tmp:rw,size=64m');
+    args.push('--tmpfs', '/var/tmp:rw,size=16m');
   }
 
-  private execDirect(command: string, timeout: number, options?: ExecOptions): Promise<ExecResult> {
-    if (!this.config.allowDirectExec) {
-      throw new Error(
-        'No sandbox runtime available and direct execution is disabled. ' +
-        'Set allowDirectExec: true to allow unsandboxed execution.',
-      );
-    }
+  for (const [k, v] of Object.entries(cfg.env)) args.push('-e', `${k}=${v}`);
 
-    if (this.isDestructiveCommand(command)) {
-      throw new Error(
-        `Refusing to execute potentially destructive command without sandbox: ${command}`,
-      );
-    }
+  args.push(cfg.image, 'tail', '-f', '/dev/null');
+  return args;
+}
 
-    const execOptions: ExecOptions = { ...options };
-    return this.runProcess('sh', ['-c', command], timeout, execOptions);
-  }
+function containerKey(opts: SandboxRunOptions): string {
+  if (opts.cfg.scope === 'shared') return SHARED_KEY;
+  if (opts.cfg.scope === 'agent')  return `agent-${opts.agentId}`;
+  return `sess-${opts.sessionKey.replace(/[^a-z0-9]/gi, '-').slice(0, 20)}`;
+}
 
-  private isDestructiveCommand(command: string): boolean {
-    return DESTRUCTIVE_PATTERNS.some((pattern) => pattern.test(command));
-  }
+function dockerAvailable(): boolean {
+  return spawnSync('docker', ['info'], { encoding: 'utf-8', timeout: 5_000 }).status === 0;
+}
 
-  private runProcess(
-    binary: string,
-    args: string[],
-    timeout: number,
-    options?: ExecOptions,
-  ): Promise<ExecResult> {
-    return new Promise((resolve, reject) => {
-      const start = performance.now();
+function fmt(r: SpawnSyncReturns<string>): string {
+  if (r.error) return `exec error: ${r.error.message}`;
+  return [
+    `exit: ${r.status ?? -1}`,
+    r.stdout?.trim() ? `stdout:\n${r.stdout.trim()}` : '',
+    r.stderr?.trim() ? `stderr:\n${r.stderr.trim()}` : '',
+  ].filter(Boolean).join('\n') || '(no output)';
+}
 
-      const child = execFile(
-        binary,
-        args,
-        {
-          timeout,
-          maxBuffer: 10 * 1024 * 1024,
-          env: options?.env ? { ...process.env, ...options.env } : undefined,
-          cwd: options?.cwd,
-        },
-        (error, stdout, stderr) => {
-          const durationMs = Math.round(performance.now() - start);
+export function explainSandbox(opts: SandboxRunOptions): string {
+  const sandboxed = shouldSandbox(opts);
+  const key = containerKey(opts);
+  return [
+    `Session:      ${opts.sessionKey}`,
+    `Is main:      ${opts.isMain}`,
+    `Mode:         ${opts.cfg.mode}`,
+    `Scope:        ${opts.cfg.scope}`,
+    `Workspace:    ${opts.cfg.workspaceAccess}`,
+    `Sandboxed:    ${sandboxed}`,
+    `Elevated:     ${opts.elevated}`,
+    `→ exec runs on: ${sandboxed ? `DOCKER (${activeContainers.get(key) ?? 'not started'})` : 'HOST'}`,
+  ].join('\n');
+}
 
-          if (error && 'killed' in error && error.killed) {
-            resolve({
-              stdout: stdout ?? '',
-              stderr: `Process killed after ${timeout}ms timeout\n${stderr ?? ''}`,
-              exitCode: 137,
-              durationMs,
-            });
-            return;
-          }
-
-          const exitCode = error && 'code' in error && typeof error.code === 'number'
-            ? error.code
-            : error ? 1 : 0;
-
-          resolve({
-            stdout: stdout ?? '',
-            stderr: stderr ?? '',
-            exitCode,
-            durationMs,
-          });
-        },
-      );
-
-      child.on('error', (err) => {
-        reject(new Error(`Failed to start process "${binary}": ${err.message}`));
-      });
-    });
-  }
-
-  /** Reset cached type detection (useful after environment changes). */
-  resetDetection(): void {
-    this.detectedType = null;
-  }
-
-  /** Directly set sandbox type (primarily for testing). */
-  setType(type: SandboxType): void {
-    this.detectedType = type;
+export async function stopAllContainers(): Promise<void> {
+  for (const [key, id] of activeContainers) {
+    spawnSync('docker', ['stop', id], { encoding: 'utf-8', timeout: 10_000 });
+    activeContainers.delete(key);
   }
 }
 
-export type { SandboxConfig, ExecResult, ExecOptions, SandboxType };
-export { SandboxConfigSchema };
+export const DEFAULT_SANDBOX_CONFIG: SandboxConfig = {
+  mode:            'non-main',
+  scope:           'session',
+  workspaceAccess: 'none',
+  image:           'microclaw-sandbox:latest',
+  network:         'none',
+  readOnlyRoot:    true,
+  binds:           [],
+  env:             {},
+};

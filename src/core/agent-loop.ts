@@ -4,6 +4,10 @@ import { TOOLS } from './tools.js';
 import { ToolExecutor } from './tool-executor.js';
 import { trimHistory, type Message } from './token-budget.js';
 import type { MicroClawDB } from '../db.js';
+import type { SandboxRunOptions } from '../execution/sandbox.js';
+import { hookRegistry } from '../hooks/hook-registry.js';
+
+const MAX_ITERATIONS = 10;
 
 export interface LoopConfig {
   provider: IProviderAdapter;
@@ -12,17 +16,19 @@ export interface LoopConfig {
   db: MicroClawDB;
   groupId: string;
   senderId?: string;
+  sessionKey?: string;
+  sandboxOpts: SandboxRunOptions;
   onToolCall?: (name: string) => void;
-  onCronChange?: () => void;
   maxIterations?: number;
 }
 
 interface ToolCall { name: string; args: Record<string, unknown> }
 
 export async function agentLoop(messages: Message[], cfg: LoopConfig): Promise<string> {
-  const exec = new ToolExecutor(cfg.db, cfg.groupId, process.cwd(), cfg.onCronChange);
-  const max = cfg.maxIterations ?? 8;
+  const exec = new ToolExecutor(cfg.groupId, process.cwd(), cfg.sandboxOpts);
+  const max = cfg.maxIterations ?? MAX_ITERATIONS;
   let hist = [...messages];
+  const sessionKey = cfg.sessionKey ?? 'main';
 
   for (let i = 0; i < max; i++) {
     const trimmed = trimHistory(hist, cfg.model.id, cfg.systemPrompt);
@@ -49,8 +55,11 @@ export async function agentLoop(messages: Message[], cfg: LoopConfig): Promise<s
     const resultLines: string[] = [];
     for (const call of calls) {
       cfg.onToolCall?.(call.name);
-      const result = await exec.run(call.name, call.args);
-      resultLines.push(`[${call.name}] ${result}`);
+      const rawResult = await exec.run(call.name, call.args);
+      const finalResult = hookRegistry.applyToolResult({
+        type: 'tool_result', toolName: call.name, result: rawResult, sessionKey,
+      });
+      resultLines.push(`[${call.name}] ${typeof finalResult === 'string' ? finalResult : JSON.stringify(finalResult)}`);
     }
 
     hist.push({ role: 'assistant', content: response.content || `[Used tools: ${calls.map(c => c.name).join(', ')}]` });

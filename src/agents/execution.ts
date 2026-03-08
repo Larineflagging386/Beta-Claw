@@ -2,9 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { encode } from '../core/toon-serializer.js';
-import { getConfig } from '../core/config-loader.js';
 import { RollbackManager } from '../execution/rollback.js';
-import { Sandbox } from '../execution/sandbox.js';
+import { sandboxedExec, DEFAULT_SANDBOX_CONFIG, type SandboxRunOptions } from '../execution/sandbox.js';
 import type { AgentTask, AgentResult, IAgent } from './types.js';
 import { AgentTaskSchema } from './types.js';
 
@@ -255,15 +254,18 @@ function extractPackageName(brief: string): { manager: string; pkg: string } {
 export class ExecutionAgent implements IAgent {
   readonly type = 'execution' as const;
   private readonly rollback: RollbackManager;
-  private readonly sandbox: Sandbox;
+  private readonly sandboxOpts: SandboxRunOptions;
 
   constructor() {
     this.rollback = new RollbackManager();
-    const config = getConfig();
-    this.sandbox = new Sandbox({
-      preferredRuntime: config.executionMode === 'isolated' ? 'docker' : 'none',
-      allowDirectExec: config.executionMode === 'full_control',
-    });
+    this.sandboxOpts = {
+      sessionKey: 'execution-agent',
+      agentId: 'execution',
+      isMain: true,
+      elevated: 'off',
+      groupId: 'default',
+      cfg: DEFAULT_SANDBOX_CONFIG,
+    };
   }
 
   async execute(task: AgentTask): Promise<AgentResult> {
@@ -321,37 +323,10 @@ export class ExecutionAgent implements IAgent {
           fs.writeFileSync(tmpFile, code, 'utf-8');
           filesCreated.push(tmpFile);
 
-          const config = getConfig();
-          if (config.executionMode === 'isolated') {
-            try {
-              const result = await this.sandbox.exec(
-                `${lang === 'python' ? 'python3' : lang === 'bash' ? 'bash' : 'node'} ${tmpFile}`,
-              );
-              stdout = result.stdout;
-              stderr = result.stderr;
-              exitCode = result.exitCode;
-            } catch {
-              const runner = lang === 'python' ? 'python3' : lang === 'bash' ? 'bash' : 'node';
-              const result = spawnSync(runner, [tmpFile], {
-                timeout: 30_000,
-                encoding: 'utf-8',
-                cwd: process.cwd(),
-              });
-              stdout = result.stdout ?? '';
-              stderr = result.stderr ?? '';
-              exitCode = result.status ?? 1;
-            }
-          } else {
-            const runner = lang === 'python' ? 'python3' : lang === 'bash' ? 'bash' : 'node';
-            const result = spawnSync(runner, [tmpFile], {
-              timeout: 30_000,
-              encoding: 'utf-8',
-              cwd: process.cwd(),
-            });
-            stdout = result.stdout ?? '';
-            stderr = result.stderr ?? '';
-            exitCode = result.status ?? 1;
-          }
+          const runner = lang === 'python' ? 'python3' : lang === 'bash' ? 'bash' : 'node';
+          const cmdOutput = await sandboxedExec(`${runner} ${tmpFile}`, process.cwd(), this.sandboxOpts);
+          stdout = cmdOutput;
+          exitCode = cmdOutput.startsWith('exit: 0') ? 0 : 1;
 
           command = `${lang} ${tmpFile}`;
           try { fs.unlinkSync(tmpFile); } catch { /* already cleaned up */ }
@@ -398,33 +373,9 @@ export class ExecutionAgent implements IAgent {
         case 'command': {
           const cmdMatch = /(?:run|execute)\s+[`"']?(.*?)[`"']?\s*$/i.exec(brief);
           const cmd = cmdMatch?.[1] ?? brief;
-          const config = getConfig();
-          if (config.executionMode === 'isolated') {
-            try {
-              const result = await this.sandbox.exec(cmd);
-              stdout = result.stdout;
-              stderr = result.stderr;
-              exitCode = result.exitCode;
-            } catch {
-              const result = spawnSync('sh', ['-c', cmd], {
-                timeout: 30_000,
-                encoding: 'utf-8',
-                cwd: process.cwd(),
-              });
-              stdout = result.stdout ?? '';
-              stderr = result.stderr ?? '';
-              exitCode = result.status ?? 1;
-            }
-          } else {
-            const result = spawnSync('sh', ['-c', cmd], {
-              timeout: 30_000,
-              encoding: 'utf-8',
-              cwd: process.cwd(),
-            });
-            stdout = result.stdout ?? '';
-            stderr = result.stderr ?? '';
-            exitCode = result.status ?? 1;
-          }
+          const cmdOutput = await sandboxedExec(cmd, process.cwd(), this.sandboxOpts);
+          stdout = cmdOutput;
+          exitCode = cmdOutput.startsWith('exit: 0') ? 0 : 1;
           command = cmd;
           break;
         }

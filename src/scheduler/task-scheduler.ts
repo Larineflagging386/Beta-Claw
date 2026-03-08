@@ -6,6 +6,7 @@ import type { ModelEntry } from '../core/model-catalog.js';
 import { agentLoop } from '../core/agent-loop.js';
 import { buildSystemPrompt } from '../core/prompt-builder.js';
 import { selectModel } from '../core/model-selector.js';
+import { DEFAULT_SANDBOX_CONFIG, type SandboxRunOptions } from '../execution/sandbox.js';
 /** @deprecated WhatsAppSendFn has been removed; kept for backward compat with TaskScheduler constructor */
 type WhatsAppSendFn = (to: string, message: string) => Promise<void>;
 
@@ -96,9 +97,13 @@ export class TaskScheduler extends EventEmitter {
         senderId: senderJid,
         channel: 'whatsapp',
       });
+      const schedulerSandboxOpts: SandboxRunOptions = {
+        sessionKey: `cron-${task.id}`, agentId: 'cron', isMain: false,
+        elevated: 'off', groupId: task.group_id, cfg: DEFAULT_SANDBOX_CONFIG,
+      };
       const response = await agentLoop(
         [{ role: 'user', content: `[SCHEDULED TASK: ${task.name}]\n${task.instruction}` }],
-        { provider, model: sel.model, systemPrompt, db: this.db, groupId: task.group_id },
+        { provider, model: sel.model, systemPrompt, db: this.db, groupId: task.group_id, sandboxOpts: schedulerSandboxOpts },
       );
 
       if (response && this.onMessage) {
