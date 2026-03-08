@@ -1,130 +1,83 @@
-import { randomUUID } from 'node:crypto';
-import { z } from 'zod';
+// src/execution/group-queue.ts
 
-enum MessagePriority {
-  CRITICAL = 0,
-  HIGH = 1,
-  NORMAL = 2,
-  LOW = 3,
-}
-
-const QueuedMessageSchema = z.object({
-  id: z.string().uuid(),
-  groupId: z.string().min(1),
-  content: z.string(),
-  priority: z.nativeEnum(MessagePriority),
-  timestamp: z.number(),
-});
+import EventEmitter from 'events';
 
 interface QueuedMessage {
-  id: string;
-  groupId: string;
-  content: string;
-  priority: MessagePriority;
-  timestamp: number;
+  id:       string;
+  groupId:  string;
+  payload:  unknown;
+  resolve:  (result: unknown) => void;
+  reject:   (err: Error) => void;
 }
 
-class GroupQueue {
-  private readonly queues = new Map<string, QueuedMessage[]>();
-  private readonly processedIds = new Set<string>();
+export class GroupQueue extends EventEmitter {
+  private lanes   = new Map<string, QueuedMessage[]>();  // groupId → queue
+  private active  = new Map<string, boolean>();           // groupId → processing?
+  private cap:    number;
+  private handler: (msg: QueuedMessage) => Promise<unknown>;
 
-  enqueue(
-    groupId: string,
-    content: string,
-    priority: MessagePriority = MessagePriority.NORMAL,
-  ): string {
-    const id = randomUUID();
-
-    if (this.processedIds.has(id)) {
-      return id;
-    }
-
-    const message: QueuedMessage = {
-      id,
-      groupId,
-      content,
-      priority,
-      timestamp: Date.now(),
-    };
-
-    QueuedMessageSchema.parse(message);
-
-    let queue = this.queues.get(groupId);
-    if (!queue) {
-      queue = [];
-      this.queues.set(groupId, queue);
-    }
-
-    queue.push(message);
-    return id;
+  constructor(opts: { cap?: number; handler: (msg: QueuedMessage) => Promise<unknown> }) {
+    super();
+    this.cap     = opts.cap ?? 100;
+    this.handler = opts.handler;
   }
 
-  dequeue(groupId: string): QueuedMessage | undefined {
-    const queue = this.queues.get(groupId);
-    if (!queue || queue.length === 0) return undefined;
+  enqueue(groupId: string, id: string, payload: unknown): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      let lane = this.lanes.get(groupId);
+      if (!lane) { lane = []; this.lanes.set(groupId, lane); }
 
-    let bestIdx = 0;
-    let best = queue[0]!;
-
-    for (let i = 1; i < queue.length; i++) {
-      const msg = queue[i]!;
-      if (
-        msg.priority < best.priority ||
-        (msg.priority === best.priority && msg.timestamp < best.timestamp)
-      ) {
-        best = msg;
-        bestIdx = i;
+      // Drop oldest if over cap
+      if (lane.length >= this.cap) {
+        const dropped = lane.shift();
+        dropped?.reject(new Error('Queue cap exceeded — message dropped'));
+        this.emit('drop', { groupId, id });
       }
-    }
 
-    queue.splice(bestIdx, 1);
-    this.processedIds.add(best.id);
+      lane.push({ id, groupId, payload, resolve, reject });
+      this.emit('enqueue', { groupId, id, depth: lane.length });
 
-    if (queue.length === 0) {
-      this.queues.delete(groupId);
-    }
-
-    return best;
-  }
-
-  peek(groupId: string): QueuedMessage | undefined {
-    const queue = this.queues.get(groupId);
-    if (!queue || queue.length === 0) return undefined;
-
-    let best = queue[0]!;
-
-    for (let i = 1; i < queue.length; i++) {
-      const msg = queue[i]!;
-      if (
-        msg.priority < best.priority ||
-        (msg.priority === best.priority && msg.timestamp < best.timestamp)
-      ) {
-        best = msg;
-      }
-    }
-
-    return best;
-  }
-
-  length(groupId: string): number {
-    return this.queues.get(groupId)?.length ?? 0;
-  }
-
-  clear(groupId: string): void {
-    this.queues.delete(groupId);
-  }
-
-  activeGroups(): string[] {
-    return Array.from(this.queues.keys()).filter((gid) => {
-      const queue = this.queues.get(gid);
-      return queue !== undefined && queue.length > 0;
+      // Kick off processing for this lane if not already running.
+      // setImmediate ensures we don't block the caller.
+      setImmediate(() => this.drain(groupId));
     });
   }
 
-  isProcessed(messageId: string): boolean {
-    return this.processedIds.has(messageId);
+  private async drain(groupId: string): Promise<void> {
+    // If this lane is already being drained, do nothing — the running drain() will loop.
+    if (this.active.get(groupId)) return;
+    this.active.set(groupId, true);
+
+    const lane = this.lanes.get(groupId);
+    if (!lane) { this.active.delete(groupId); return; }
+
+    // Process ALL messages in the lane sequentially (one lane = one concurrent worker).
+    while (lane.length > 0) {
+      const msg = lane.shift()!;
+      try {
+        const result = await this.handler(msg);
+        msg.resolve(result);
+        this.emit('processed', { groupId, id: msg.id });
+      } catch (e) {
+        msg.reject(e instanceof Error ? e : new Error(String(e)));
+        this.emit('error', { groupId, id: msg.id, err: e });
+      }
+    }
+
+    this.active.delete(groupId);
+
+    // Check if more messages arrived while we were processing.
+    const refilled = this.lanes.get(groupId);
+    if (refilled && refilled.length > 0) {
+      setImmediate(() => this.drain(groupId));
+    }
+  }
+
+  depth(groupId: string): number {
+    return this.lanes.get(groupId)?.length ?? 0;
+  }
+
+  activeGroups(): string[] {
+    return [...this.active.keys()];
   }
 }
-
-export { GroupQueue, MessagePriority, QueuedMessageSchema };
-export type { QueuedMessage };

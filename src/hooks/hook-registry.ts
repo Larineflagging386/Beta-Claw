@@ -1,8 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { PATHS } from '../core/paths.js';
 import type { RegisteredHook, HookHandler, HookEvent, ToolResultHookHandler, ToolResultEvent } from './types.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
 
 export class HookRegistry {
   private hooks           = new Map<string, RegisteredHook & { handler: HookHandler }>();
@@ -11,7 +14,7 @@ export class HookRegistry {
 
   async load(): Promise<void> {
     const sources: Array<{ dir: string; source: RegisteredHook['source'] }> = [
-      { dir: path.join(process.cwd(), 'src/hooks/bundled'), source: 'bundled' },
+      { dir: path.join(__dirname, 'bundled'),               source: 'bundled' },
       { dir: path.resolve(PATHS.hooks),                     source: 'managed' },
     ];
 

@@ -20,6 +20,13 @@ export interface EphemeralRunResult {
   durationMs: number;
 }
 
+function imageExists(image: string): boolean {
+  const r = spawnSync('docker', ['image', 'inspect', image], {
+    encoding: 'utf-8', timeout: 5_000,
+  });
+  return r.status === 0;
+}
+
 /**
  * Run a command in a fresh ephemeral container.
  * Container is ALWAYS destroyed after run (--rm), even on error.
@@ -30,6 +37,15 @@ export async function runEphemeral(opts: EphemeralRunOptions): Promise<Ephemeral
   const timeout = opts.timeoutMs ?? 60_000;
   const network = opts.networkMode ?? 'none';
   const workDir = path.join(PATHS.sandboxes, 'ephemeral', id);
+
+  if (!imageExists(image)) {
+    return {
+      stdout:     '',
+      stderr:     `Image "${image}" not found. Run: microclaw sandbox setup`,
+      exitCode:   127,
+      durationMs: 0,
+    };
+  }
 
   fs.mkdirSync(workDir, { recursive: true });
 
@@ -49,9 +65,9 @@ export async function runEphemeral(opts: EphemeralRunOptions): Promise<Ephemeral
     '--memory',     '256m',
     '--cpus',       '0.5',
     '--pids-limit', '64',
-    '--read-only',
-    '--tmpfs', '/tmp:rw,size=64m',
-    '--tmpfs', '/var/tmp:rw,size=16m',
+    // --read-only removed: bash needs to write internal proc/tmp files
+    '--tmpfs', '/tmp:rw,exec,size=64m',
+    '--tmpfs', '/run:rw,size=8m',
   ];
 
   for (const [k, v] of Object.entries(opts.env ?? {})) {

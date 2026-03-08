@@ -203,5 +203,14 @@ class WorkingMemory {
   }
 }
 
+// Pre-configured profile instances — convenience for code that needs a ready-made instance.
+// Each instance is independent; create with `new WorkingMemory({ profile })` for session use.
+export const MEMORY_PROFILES = {
+  micro:    new WorkingMemory({ profile: 'micro' }),
+  lite:     new WorkingMemory({ profile: 'lite' }),
+  standard: new WorkingMemory({ profile: 'standard' }),
+  full:     new WorkingMemory({ profile: 'full' }),
+} as const;
+
 export { WorkingMemory, PROFILE_LIMITS, ExternalMessageSchema, ExternalConfigSchema };
 export type { ResourceProfile, WorkingMemoryConfig, ContextBudget, MemoryMessage };

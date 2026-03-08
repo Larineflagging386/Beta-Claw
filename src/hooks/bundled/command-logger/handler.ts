@@ -1,11 +1,14 @@
 import type { HookHandler } from '../../types.js';
 import fs from 'fs';
-import { PATHS } from '../../../core/paths.js';
+import path from 'path';
 
 const handler: HookHandler = async (event) => {
   if (event.type !== 'command') return;
-  const logPath = `${PATHS.logs}/commands.log`;
-  fs.mkdirSync(PATHS.logs, { recursive: true });
+
+  const logDir  = path.join(process.cwd(), '.micro', 'logs');
+  const logPath = path.join(logDir, 'commands.log');
+
+  fs.mkdirSync(logDir, { recursive: true });
   fs.appendFileSync(logPath,
     JSON.stringify({
       ts:      event.timestamp.toISOString(),
