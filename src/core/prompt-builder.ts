@@ -1,9 +1,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { compressMemoryFile } from './token-budget.js';
+import { estimateTokens } from './token-budget.js';
 import type { SkillDefinition } from './skill-parser.js';
+import type { MicroClawDB } from '../db.js';
+import { GROUPS_DIR, MEMORY_FILENAME, SOUL_FILENAME } from './paths.js';
 
 const AGENT_BASE_PATH = path.resolve('prompts/system/agent-base.toon');
+
+/** Compact tool list — full tool definitions are passed separately via the tools array. */
+const TOOL_SUMMARY =
+  'FS: read write append delete list search | ' +
+  'Sys: exec python node process | ' +
+  'Web: web_search web_fetch download | ' +
+  'Browser: browser | ' +
+  'Mem: memory_read memory_write memory_search | ' +
+  'Auto: cron scheduler heartbeat | ' +
+  'Agent: session context history | ' +
+  'Cfg: config env logs';
 
 function loadAgentBase(personaName: string, personaStyle: string): string {
   try {
@@ -15,17 +28,9 @@ function loadAgentBase(personaName: string, personaStyle: string): string {
   } catch {
     // fall through to inline fallback
   }
-  return `You are ${personaName}, an AI assistant (${personaStyle}).
-CRITICAL: You have real tools. Use them. NEVER say you cannot do something if a tool can do it.
-- write_file: create any file
-- run_cmd: run any shell command (mkdir, git, npm, python, etc.)
-- list_dir: list directory contents
-- read_file: read file contents
-- web_search: search the web
-- send_whatsapp: send a WhatsApp message
-- cron_add/cron_list/cron_delete: schedule recurring tasks
-- memory_save/memory_search: remember facts
-Current directory: ${process.cwd()}`;
+  return `You are ${personaName} (${personaStyle}). Use tools — never say you cannot do something a tool can do.
+Tools: ${TOOL_SUMMARY}
+All files go to .workspace/ unless a path is specified. CWD: ${process.cwd()}`;
 }
 
 function extractSoulMeta(soul: string): { name: string; style: string } {
@@ -37,45 +42,74 @@ function extractSoulMeta(soul: string): { name: string; style: string } {
   };
 }
 
+/**
+ * Retrieve the most relevant memory chunks via FTS5.
+ * Falls back to the last 5 facts by recency if no hint is available.
+ */
+function selectiveMemory(db: MicroClawDB | undefined, groupId: string, memoryPath: string, hint?: string): string {
+  // Always try FTS5 first if db is available
+  if (db) {
+    try {
+      const safe = (hint ?? '').replace(/["*(){}:^~.\-/\\]/g, ' ').trim();
+      if (safe) {
+        const rows = db.searchMemory(safe, groupId, 5);
+        if (rows.length) return rows.map(r => `- ${r.content}`).join('\n');
+      }
+      // Fallback: last 5 stored facts by recency
+      const recent = db.searchMemory('', groupId, 5);
+      if (recent.length) return recent.map(r => `- ${r.content}`).join('\n');
+    } catch { /* ignore if FTS unavailable */ }
+  }
+
+  // Final fallback: read first 30 lines of memory file
+  if (!fs.existsSync(memoryPath)) return '';
+  const lines = fs.readFileSync(memoryPath, 'utf-8').split('\n');
+  return lines.slice(0, 30).join('\n').trim();
+}
+
 export async function buildSystemPrompt(
   groupId: string,
   skills?: SkillDefinition[],
   context?: { senderId?: string; channel?: string },
+  db?: MicroClawDB,
+  lastUserMessage?: string,
 ): Promise<string> {
-  const soulPath = `groups/${groupId}/SOUL.md`;
-  const claudePath = `groups/${groupId}/CLAUDE.md`;
+  const soulPath = path.join(GROUPS_DIR, groupId, SOUL_FILENAME);
+  const memoryPath = path.join(GROUPS_DIR, groupId, MEMORY_FILENAME);
 
   const soul = fs.existsSync(soulPath) ? fs.readFileSync(soulPath, 'utf-8').trim() : '';
-  const rawMemory = fs.existsSync(claudePath) ? fs.readFileSync(claudePath, 'utf-8').trim() : '';
-  const memory = rawMemory ? compressMemoryFile(rawMemory) : '';
+  const memory = selectiveMemory(db, groupId, memoryPath, lastUserMessage);
 
   const { name: personaName, style: personaStyle } = extractSoulMeta(soul);
   const agentBase = loadAgentBase(personaName, personaStyle);
 
   const parts: string[] = [];
 
-  // 1. Agent base (tool policy, identity, guardrails)
+  // 1. Agent base (compact: ~50 tokens)
   parts.push(agentBase);
 
-  // 2. Persona / SOUL (character, language)
+  // 2. Persona / SOUL
   if (soul) parts.push(`--- Persona ---\n${soul}`);
 
   // 3. Available skills
   if (skills && skills.length > 0) {
-    const skillList = skills
-      .map(s => `  /${s.command} — ${s.description}`)
-      .join('\n');
-    parts.push(`--- Available Skills ---\nYou can invoke these skills by their command name:\n${skillList}`);
+    const skillList = skills.map(s => `/${s.command}: ${s.description}`).join('\n');
+    parts.push(`--- Skills ---\n${skillList}`);
   }
 
-  // 4. Long-term memory
-  if (memory) parts.push(`--- Long-term Memory ---\n${memory}`);
+  // 4. Relevant memory (selective injection — ~5 chunks, not full file)
+  if (memory) parts.push(`--- Memory ---\n${memory}`);
 
   // 5. Runtime context
-  const ctxLines = [`Current directory: ${process.cwd()}`];
+  const ctxLines = [`CWD: ${process.cwd()}`];
   if (context?.channel)  ctxLines.push(`Channel: ${context.channel}`);
-  if (context?.senderId) ctxLines.push(`Sender JID: ${context.senderId}  ← use this as the "to" field when calling send_whatsapp to reply to the current user`);
-  parts.push(`--- Runtime Context ---\n${ctxLines.join('\n')}`);
+  if (context?.senderId) ctxLines.push(`Sender: ${context.senderId}`);
+  parts.push(`--- Context ---\n${ctxLines.join('\n')}`);
 
   return parts.join('\n\n');
+}
+
+/** Estimate token count for a built system prompt (for benchmarking). */
+export function estimateSystemPromptTokens(prompt: string): number {
+  return estimateTokens(prompt);
 }

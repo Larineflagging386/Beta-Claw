@@ -5,6 +5,7 @@ import { BraveSearchClient } from '../search/brave.js';
 import { SerperSearchClient } from '../search/serper.js';
 import { Retriever } from '../memory/retriever.js';
 import { MicroClawDB } from '../db.js';
+import { DB_PATH } from '../core/paths.js';
 import type { AgentTask, AgentResult, IAgent } from './types.js';
 import { AgentTaskSchema } from './types.js';
 
@@ -35,7 +36,12 @@ export class ResearchAgent implements IAgent {
     const start = performance.now();
     const query = extractQuery(validated.brief);
 
-    const db = this.db ?? ResearchAgent._sharedDB ?? new MicroClawDB('microclaw.db');
+    if (!this.db && !ResearchAgent._sharedDB) {
+      const { mkdirSync } = await import('node:fs');
+      const { dirname } = await import('node:path');
+      mkdirSync(dirname(DB_PATH), { recursive: true });
+    }
+    const db = this.db ?? ResearchAgent._sharedDB ?? new MicroClawDB(DB_PATH);
     const toolCache = new ToolCache(db, validated.groupId);
     const retriever = new Retriever(db);
 

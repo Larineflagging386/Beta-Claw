@@ -4,6 +4,7 @@ import { EpisodicMemory } from '../memory/episodic.js';
 import { SemanticMemory } from '../memory/semantic.js';
 import { Retriever } from '../memory/retriever.js';
 import { MicroClawDB } from '../db.js';
+import { DB_PATH } from '../core/paths.js';
 import type { AgentTask, AgentResult, IAgent } from './types.js';
 import { AgentTaskSchema } from './types.js';
 
@@ -50,7 +51,12 @@ export class MemoryAgent implements IAgent {
     const groupId = validated.groupId;
     const content = extractContent(brief);
 
-    const db = MemoryAgent._sharedDB ?? new MicroClawDB('microclaw.db');
+    if (!MemoryAgent._sharedDB) {
+      const { mkdirSync } = await import('node:fs');
+      const { dirname } = await import('node:path');
+      mkdirSync(dirname(DB_PATH), { recursive: true });
+    }
+    const db = MemoryAgent._sharedDB ?? new MicroClawDB(DB_PATH);
     const episodic = new EpisodicMemory();
     const semantic = new SemanticMemory(db);
     const retriever = new Retriever(db);

@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 import { encode } from '../../core/toon-serializer.js';
+import { GROUPS_DIR, WORK_DIR, MEMORY_FILENAME, SOUL_FILENAME } from '../../core/paths.js';
 
 const ExecutionModeSchema = z.enum(['isolated', 'full_control']);
 
@@ -213,8 +214,9 @@ function writeConfig(state: SetupState): void {
 }
 
 function writeSoulFile(groupId: string, state: SetupState): void {
-  const soulPath = `groups/${groupId}/SOUL.md`;
-  fs.mkdirSync(`groups/${groupId}`, { recursive: true });
+  const groupDir = path.join(GROUPS_DIR, groupId);
+  const soulPath = path.join(groupDir, SOUL_FILENAME);
+  fs.mkdirSync(groupDir, { recursive: true });
 
   const styleDescriptions: Record<string, string> = {
     concise: 'Short and direct. No fluff. Get to the point.',
@@ -784,13 +786,14 @@ async function runWizardSteps(rl: readline.Interface, state: SetupState): Promis
     writeConfig(state);
     clearState();
 
-    fs.mkdirSync('groups/default/workspace', { recursive: true });
+    fs.mkdirSync(path.join(GROUPS_DIR, 'default'), { recursive: true });
+    fs.mkdirSync(WORK_DIR, { recursive: true });
     fs.mkdirSync('skills', { recursive: true });
 
     writeSoulFile('default', state);
 
-    const claudePath = 'groups/default/CLAUDE.md';
-    if (!fs.existsSync(claudePath)) {
+    const memoryPath = path.join(GROUPS_DIR, 'default', MEMORY_FILENAME);
+    if (!fs.existsSync(memoryPath)) {
       const groupMemory = [
         `# Group: Default`,
         `Created: ${new Date().toISOString().split('T')[0] ?? 'today'}`,
@@ -802,10 +805,10 @@ async function runWizardSteps(rl: readline.Interface, state: SetupState): Promis
         `(Updated automatically as MicroClaw learns your preferences)`,
         ``,
       ].join('\n');
-      fs.writeFileSync(claudePath, groupMemory, 'utf-8');
+      fs.writeFileSync(memoryPath, groupMemory, 'utf-8');
     }
 
-    const globalMemoryPath = 'CLAUDE.md';
+    const globalMemoryPath = 'microclaw.md';
     try {
       const existing = fs.readFileSync(globalMemoryPath, 'utf-8');
       if (!existing.includes('## User Preferences')) {
@@ -856,7 +859,7 @@ async function runWizardSteps(rl: readline.Interface, state: SetupState): Promis
     console.log();
     console.log('  \u2713 Configuration saved to .micro/config.toon');
     console.log('  \u2713 API keys saved to .env');
-    console.log('  \u2713 Persona saved to groups/default/SOUL.md');
+    console.log(`  \u2713 Persona saved to ${path.join(GROUPS_DIR, 'default', SOUL_FILENAME)}`);
     console.log('  \u2713 Runtime directories created');
     console.log();
     printDivider();

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
 import { decode } from '../core/toon-serializer.js';
+import { GROUPS_DIR, MEMORY_FILENAME } from '../core/paths.js';
 
 const GroupIdSchema = z.string().min(1);
 const GroupConfigSchema = z.record(z.string(), z.unknown());
@@ -10,7 +11,7 @@ class EpisodicMemory {
   private readonly groupsDir: string;
 
   constructor(groupsDir?: string) {
-    this.groupsDir = groupsDir ?? 'groups';
+    this.groupsDir = groupsDir ?? GROUPS_DIR;
   }
 
   async read(groupId: string): Promise<string> {
@@ -105,7 +106,7 @@ class EpisodicMemory {
 
   private resolvePath(groupId: string): string {
     const validated = GroupIdSchema.parse(groupId);
-    return path.join(this.groupsDir, validated, 'CLAUDE.md');
+    return path.join(this.groupsDir, validated, MEMORY_FILENAME);
   }
 }
 

@@ -1,9 +1,11 @@
 import { Command } from 'commander';
 import readline from 'node:readline';
 import fs from 'node:fs';
+import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import dotenv from 'dotenv';
 import { MicroClawDB } from '../../db.js';
+import { DB_PATH, GROUPS_DIR, SOUL_FILENAME } from '../../core/paths.js';
 import { ProviderRegistry } from '../../core/provider-registry.js';
 import { DEFAULT_CATALOG, type ModelEntry } from '../../core/model-catalog.js';
 import { selectModel } from '../../core/model-selector.js';
@@ -20,10 +22,27 @@ interface ChatOptions {
   noPersona?: boolean;
 }
 
+function warnLegacyPaths(): void {
+  if (fs.existsSync('microclaw.db')) {
+    console.warn(
+      `\n[MicroClaw] MIGRATION: Found legacy microclaw.db at project root.\n` +
+      `  Run: mkdir -p .workspace/db && mv microclaw.db .workspace/db/microclaw.db\n`,
+    );
+  }
+  if (fs.existsSync('groups') && fs.statSync('groups').isDirectory()) {
+    console.warn(
+      `[MicroClaw] MIGRATION: Found legacy groups/ at project root.\n` +
+      `  Run: mkdir -p .workspace && mv groups .workspace/groups\n`,
+    );
+  }
+}
+
 async function startChat(options: ChatOptions): Promise<void> {
   dotenv.config();
+  warnLegacyPaths();
 
-  const db = new MicroClawDB('microclaw.db');
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  const db = new MicroClawDB(DB_PATH);
   const registry = new ProviderRegistry();
   const registered = registerAvailableProviders(registry);
 
@@ -51,8 +70,9 @@ async function startChat(options: ChatOptions): Promise<void> {
   const catalog: ModelEntry[] = DEFAULT_CATALOG.filter(m => availableProviderIds.has(m.provider_id));
 
   const groupId = options.group ?? 'default';
-  const soulPath = `groups/${groupId}/SOUL.md`;
-  fs.mkdirSync(`groups/${groupId}`, { recursive: true });
+  const groupDir = path.join(GROUPS_DIR, groupId);
+  const soulPath = path.join(groupDir, SOUL_FILENAME);
+  fs.mkdirSync(groupDir, { recursive: true });
 
   if (!fs.existsSync(soulPath)) {
     console.log('\n\u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510');
@@ -85,7 +105,7 @@ async function startChat(options: ChatOptions): Promise<void> {
   const skillWatcher = new SkillWatcher();
   skillWatcher.watch();
 
-  const scheduler = new TaskScheduler(db, registry, catalog, async (_groupId, text) => {
+  const scheduler = new TaskScheduler(db, registry, catalog, undefined, async (_groupId: string, text: string) => {
     console.log(`\n[cron] ${text}\n`);
     rl.prompt();
   });

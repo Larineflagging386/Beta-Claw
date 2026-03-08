@@ -6,7 +6,8 @@ import type { ModelEntry } from '../core/model-catalog.js';
 import { agentLoop } from '../core/agent-loop.js';
 import { buildSystemPrompt } from '../core/prompt-builder.js';
 import { selectModel } from '../core/model-selector.js';
-import type { WhatsAppSendFn } from '../core/tool-executor.js';
+/** @deprecated WhatsAppSendFn has been removed; kept for backward compat with TaskScheduler constructor */
+type WhatsAppSendFn = (to: string, message: string) => Promise<void>;
 
 export interface TaskFiredEvent {
   taskId: string;
@@ -22,7 +23,7 @@ export class TaskScheduler extends EventEmitter {
     private db: MicroClawDB,
     private registry?: ProviderRegistry,
     private catalog?: ModelEntry[],
-    private whatsappSend?: WhatsAppSendFn,
+    _whatsappSend?: WhatsAppSendFn,    // kept for backward compatibility; no longer used
     private onMessage?: (groupId: string, text: string) => Promise<void>,
   ) {
     super();
@@ -97,7 +98,7 @@ export class TaskScheduler extends EventEmitter {
       });
       const response = await agentLoop(
         [{ role: 'user', content: `[SCHEDULED TASK: ${task.name}]\n${task.instruction}` }],
-        { provider, model: sel.model, systemPrompt, db: this.db, groupId: task.group_id, whatsappSend: this.whatsappSend },
+        { provider, model: sel.model, systemPrompt, db: this.db, groupId: task.group_id },
       );
 
       if (response && this.onMessage) {

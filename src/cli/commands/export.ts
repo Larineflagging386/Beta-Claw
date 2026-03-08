@@ -1,7 +1,9 @@
 import { Command } from 'commander';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import path from 'node:path';
 import { MicroClawDB } from '../../db.js';
+import { DB_PATH, EXPORTS_DIR } from '../../core/paths.js';
 
 interface ExportOptions {
   group?: string;
@@ -134,12 +136,12 @@ function toMarkdown(payload: ExportPayload): string {
 }
 
 function runExport(options: ExportOptions): void {
-  const dbPath = resolve(process.cwd(), '.micro', 'microclaw.db');
   let db: MicroClawDB;
   try {
-    db = new MicroClawDB(dbPath);
+    mkdirSync(path.dirname(DB_PATH), { recursive: true });
+    db = new MicroClawDB(DB_PATH);
   } catch {
-    console.error('Could not open database at', dbPath);
+    console.error('Could not open database at', DB_PATH);
     console.error('Run "microclaw setup" first.');
     return;
   }
@@ -152,10 +154,16 @@ function runExport(options: ExportOptions): void {
 
     if (options.output) {
       const outPath = resolve(options.output);
+      mkdirSync(path.dirname(outPath), { recursive: true });
       writeFileSync(outPath, content, 'utf-8');
       console.log(`Exported to ${outPath}`);
     } else {
-      console.log(content);
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const ext = options.format === 'md' ? 'md' : 'json';
+      const outPath = path.join(EXPORTS_DIR, `export-${ts}.${ext}`);
+      mkdirSync(EXPORTS_DIR, { recursive: true });
+      writeFileSync(outPath, content, 'utf-8');
+      console.log(`Exported to ${outPath}`);
     }
   } finally {
     db.close();

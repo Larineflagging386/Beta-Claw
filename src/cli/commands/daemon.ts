@@ -80,7 +80,9 @@ async function startDaemon(options: { foreground?: boolean }): Promise<void> {
     const { TelegramChannel } = await import('../../channels/telegram.js');
     const { DiscordChannel } = await import('../../channels/discord.js');
 
-    const db = new MicroClawDB('microclaw.db');
+    const { DB_PATH } = await import('../../core/paths.js');
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+    const db = new MicroClawDB(DB_PATH);
     const orchestrator = new Orchestrator();
 
     // Register all available AI providers from environment

@@ -10,7 +10,29 @@ dotenv.config();
 
 const PID_FILE = path.join('.micro', 'microclaw.pid');
 
+function warnLegacyPaths(): void {
+  const legacyDb = 'microclaw.db';
+  const legacyGroups = 'groups';
+  if (fs.existsSync(legacyDb)) {
+    console.warn(
+      `\n[MicroClaw] MIGRATION NOTICE: Found legacy database at ./${legacyDb}\n` +
+      `  Data is now stored in .workspace/db/microclaw.db\n` +
+      `  To migrate, run:\n` +
+      `    mkdir -p .workspace/db && mv microclaw.db .workspace/db/microclaw.db\n`,
+    );
+  }
+  if (fs.existsSync(legacyGroups) && fs.statSync(legacyGroups).isDirectory()) {
+    console.warn(
+      `[MicroClaw] MIGRATION NOTICE: Found legacy groups/ directory at ./groups/\n` +
+      `  Groups are now stored in .workspace/groups/\n` +
+      `  To migrate, run:\n` +
+      `    mkdir -p .workspace && mv groups .workspace/groups\n`,
+    );
+  }
+}
+
 async function main(): Promise<void> {
+  warnLegacyPaths();
   const { MicroClawDB } = await import('../../db.js');
   const { Orchestrator } = await import('../../core/orchestrator.js');
   const { ProviderRegistry } = await import('../../core/provider-registry.js');
@@ -19,7 +41,9 @@ async function main(): Promise<void> {
   const { TelegramChannel } = await import('../../channels/telegram.js');
   const { DiscordChannel } = await import('../../channels/discord.js');
 
-  const db = new MicroClawDB('microclaw.db');
+  const { DB_PATH } = await import('../../core/paths.js');
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  const db = new MicroClawDB(DB_PATH);
   const orchestrator = new Orchestrator();
 
   const sharedRegistry = new ProviderRegistry();

@@ -9,55 +9,139 @@ export interface ToolDefinition {
 }
 
 export const TOOLS: ToolDefinition[] = [
+
+  // ── Filesystem ─────────────────────────────────────────────────────────────
+
   {
-    name: 'write_file',
-    description: 'Create or overwrite a file with the given content. Creates parent directories automatically. Use this whenever the user asks to create, save, or write any file (HTML, CSS, JS, Python, config, etc.).',
+    name: 'read',
+    description: 'Read file contents. Optionally slice to a line range with offset/limit. Blocked on secrets paths.',
     input_schema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'File path (relative to current directory). E.g. "index.html", "src/app.ts", "scripts/run.py"' },
-        content: { type: 'string', description: 'Full file content to write' },
+        path:   { type: 'string', description: 'File path to read' },
+        offset: { type: 'number', description: 'First line to read (1-based, optional)' },
+        limit:  { type: 'number', description: 'Max lines to return (optional)' },
+      },
+      required: ['path'],
+    },
+  },
+  {
+    name: 'write',
+    description: 'Write or overwrite a file. Bare filenames go to .workspace/work/. Creates parent dirs automatically.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        path:    { type: 'string', description: 'Destination file path' },
+        content: { type: 'string', description: 'Full content to write' },
       },
       required: ['path', 'content'],
     },
   },
   {
-    name: 'read_file',
-    description: 'Read and return the content of a file. Use to inspect existing files before editing them.',
+    name: 'append',
+    description: 'Append text to the end of a file (creates it if missing).',
     input_schema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Path to the file to read' },
+        path:    { type: 'string', description: 'File path to append to' },
+        content: { type: 'string', description: 'Content to append' },
+      },
+      required: ['path', 'content'],
+    },
+  },
+  {
+    name: 'delete',
+    description: 'Delete a file or empty directory.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Path to delete' },
       },
       required: ['path'],
     },
   },
   {
-    name: 'list_dir',
-    description: 'List all files and folders in a directory. Use "." for the current directory. Use this to explore the project structure.',
+    name: 'list',
+    description: 'List a directory. Set recursive=true for a tree view. Use "." for current directory.',
     input_schema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Directory path. Use "." for current directory.' },
+        path:      { type: 'string', description: 'Directory path' },
+        recursive: { type: 'boolean', description: 'Include subdirectories recursively' },
       },
       required: ['path'],
     },
   },
   {
-    name: 'run_cmd',
-    description: 'Run any shell command via bash. Use this for EVERYTHING system-related: creating folders (mkdir), listing files (ls), running scripts (node, python, bash), installing packages (npm install, pip install), git operations, compiling code, starting servers, checking processes, etc. NEVER say you cannot do something — use this tool instead.',
+    name: 'search',
+    description: 'Search files. type="name" finds files matching a glob pattern; type="content" searches file contents with a regex (uses ripgrep when available).',
     input_schema: {
       type: 'object',
       properties: {
-        cmd: { type: 'string', description: 'Shell command to run. Examples: "mkdir -p my-folder", "npm install express", "python script.py", "git status", "ls -la"' },
-        cwd: { type: 'string', description: 'Working directory for the command (optional, defaults to current directory)' },
+        pattern: { type: 'string', description: 'Glob pattern (name search) or regex (content search)' },
+        path:    { type: 'string', description: 'Root directory to search in (default: .)' },
+        type:    { type: 'string', description: '"name" or "content" (default: name)', enum: ['name', 'content'] },
+      },
+      required: ['pattern'],
+    },
+  },
+
+  // ── System ─────────────────────────────────────────────────────────────────
+
+  {
+    name: 'exec',
+    description: 'Run any shell command via bash. Use for git, npm, mkdir, ls, compiling code, starting processes, etc. NEVER say you cannot do something — use exec instead.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        cmd: { type: 'string', description: 'Shell command to execute' },
+        cwd: { type: 'string', description: 'Working directory (optional, defaults to project root)' },
       },
       required: ['cmd'],
     },
   },
   {
+    name: 'python',
+    description: 'Execute a Python 3 code snippet and return stdout/stderr. Great for calculations, data processing, file parsing, or any scripting task.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'string', description: 'Python 3 code to execute' },
+      },
+      required: ['code'],
+    },
+  },
+  {
+    name: 'node',
+    description: 'Execute a Node.js (ESM) code snippet and return stdout/stderr. Use for JavaScript computations, JSON manipulation, or Node.js-specific tasks.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        code: { type: 'string', description: 'Node.js ESM code to execute' },
+      },
+      required: ['code'],
+    },
+  },
+  {
+    name: 'process',
+    description: 'Manage system processes. list: show running processes; kill: terminate by PID or name; spawn: start a background command.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action:  { type: 'string', description: 'Action: list, kill, or spawn', enum: ['list', 'kill', 'spawn'] },
+        pid:     { type: 'number', description: 'Process ID (for kill)' },
+        name:    { type: 'string', description: 'Process name to kill or command to spawn' },
+        args:    { type: 'string', description: 'Arguments for spawn (space-separated)' },
+      },
+      required: ['action'],
+    },
+  },
+
+  // ── Web ────────────────────────────────────────────────────────────────────
+
+  {
     name: 'web_search',
-    description: 'Search the web and return the top results. Use this when the user asks about current events, documentation, prices, news, or anything that requires up-to-date information.',
+    description: 'Search the web via Brave or Serper and return top results. Use for current events, documentation, prices, or anything needing up-to-date info.',
     input_schema: {
       type: 'object',
       properties: {
@@ -67,77 +151,213 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
   {
-    name: 'send_whatsapp',
-    description: 'Send a WhatsApp message to a phone number or group. Use this when the user asks you to message them on WhatsApp, send a reminder, or communicate via WhatsApp. The "to" field should be the JID (phone number with country code + @s.whatsapp.net, or group JID). If you do not know the JID, use the sender\'s groupId from the conversation context.',
+    name: 'web_fetch',
+    description: 'Make an HTTP request (GET/POST/PUT/DELETE) and return the response body. Use for APIs, webhooks, or fetching web pages.',
     input_schema: {
       type: 'object',
       properties: {
-        to: { type: 'string', description: 'WhatsApp JID — phone number like "1234567890@s.whatsapp.net" or group JID like "120363xxx@g.us"' },
-        message: { type: 'string', description: 'Message text to send' },
+        url:     { type: 'string', description: 'Full URL to request' },
+        method:  { type: 'string', description: 'HTTP method (default: GET)', enum: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] },
+        headers: { type: 'string', description: 'JSON string of request headers' },
+        body:    { type: 'string', description: 'Request body for POST/PUT' },
       },
-      required: ['to', 'message'],
+      required: ['url'],
     },
   },
   {
-    name: 'cron_add',
-    description: 'Schedule a recurring task using a cron expression. Use this when the user asks to run something periodically (every N minutes, daily, weekly, etc.). The instruction is what the assistant will do when the task fires.',
+    name: 'download',
+    description: 'Download a file from a URL and save it to .workspace/downloads/. Returns the saved file path.',
     input_schema: {
       type: 'object',
       properties: {
-        name: { type: 'string', description: 'Short descriptive name for the task' },
-        cron: { type: 'string', description: 'Cron expression. Examples: "* * * * *" (every minute), "*/30 * * * *" (every 30 min), "0 9 * * 1-5" (9am weekdays)' },
-        instruction: { type: 'string', description: 'What to do when the task fires. E.g. "Send a WhatsApp message asking how the user is doing"' },
+        url:      { type: 'string', description: 'URL to download' },
+        filename: { type: 'string', description: 'Filename to save as (inferred from URL if omitted)' },
       },
-      required: ['name', 'cron', 'instruction'],
+      required: ['url'],
     },
   },
+
+  // ── Browser ────────────────────────────────────────────────────────────────
+
   {
-    name: 'cron_list',
-    description: 'List all currently scheduled recurring tasks.',
+    name: 'browser',
+    description: 'Control a Chromium browser via Playwright. Actions: open (navigate to URL), click (click a selector), type (type text into a selector), extract (get text/HTML from a selector), screenshot (save to .workspace/images/), close (close browser). Requires playwright installed.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action:   { type: 'string', description: 'Action to perform', enum: ['open', 'click', 'type', 'extract', 'screenshot', 'close'] },
+        url:      { type: 'string', description: 'URL to navigate to (for open)' },
+        selector: { type: 'string', description: 'CSS selector or text to target (for click/type/extract)' },
+        text:     { type: 'string', description: 'Text to type (for type action)' },
+        path:     { type: 'string', description: 'Screenshot filename (for screenshot, saved to .workspace/images/)' },
+      },
+      required: ['action'],
+    },
+  },
+
+  // ── Memory ─────────────────────────────────────────────────────────────────
+
+  {
+    name: 'memory_read',
+    description: 'Read the full memory file (memory.md) for the current group. Returns stored facts, preferences, and notes.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
-    name: 'cron_delete',
-    description: 'Delete a scheduled recurring task by its ID (from cron_list).',
-    input_schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'Task ID to delete' },
-      },
-      required: ['id'],
-    },
-  },
-  {
-    name: 'get_skill',
-    description: 'Get the full step-by-step instructions for a skill by its command name. ALWAYS call this first when a user asks for something a skill covers (e.g. "add gmail", "check status", "add telegram"). Read the returned instructions and follow them exactly using your available tools.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        command: { type: 'string', description: 'Skill command name, e.g. "add-gmail", "status", "add-telegram". Omit the leading slash.' },
-      },
-      required: ['command'],
-    },
-  },
-  {
-    name: 'memory_save',
-    description: 'Save a fact, preference, or piece of information to long-term memory so it persists across conversations.',
+    name: 'memory_write',
+    description: 'Write a fact, preference, or note to long-term memory. Persists across conversations.',
     input_schema: {
       type: 'object',
       properties: {
         content: { type: 'string', description: 'The fact or information to remember' },
+        section: { type: 'string', description: 'Memory section heading to write under (optional, e.g. "User Preferences")' },
       },
       required: ['content'],
     },
   },
   {
     name: 'memory_search',
-    description: 'Search long-term memory for stored facts and preferences.',
+    description: 'Search long-term memory using full-text search. Returns the most relevant stored facts.',
     input_schema: {
       type: 'object',
       properties: {
         query: { type: 'string', description: 'What to search for in memory' },
       },
       required: ['query'],
+    },
+  },
+
+  // ── Automation ─────────────────────────────────────────────────────────────
+
+  {
+    name: 'cron',
+    description: 'Manage recurring scheduled tasks. add: create a new cron job; list: show all; delete: remove by id; update: change expression or instruction.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action:      { type: 'string', description: 'add, list, delete, or update', enum: ['add', 'list', 'delete', 'update'] },
+        name:        { type: 'string', description: 'Task name (for add/update)' },
+        expr:        { type: 'string', description: 'Cron expression, e.g. "0 9 * * 1-5" (for add/update)' },
+        instruction: { type: 'string', description: 'What to do when the task fires (for add/update)' },
+        id:          { type: 'string', description: 'Task ID (for delete/update)' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'scheduler',
+    description: 'Schedule a one-time task at a specific future time (ISO 8601 timestamp). list: show pending; cancel: remove by id.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action:      { type: 'string', description: 'add, list, or cancel', enum: ['add', 'list', 'cancel'] },
+        name:        { type: 'string', description: 'Task name (for add)' },
+        at:          { type: 'string', description: 'ISO 8601 datetime to run at, e.g. "2026-03-10T09:00:00Z" (for add)' },
+        instruction: { type: 'string', description: 'What to do at the scheduled time (for add)' },
+        id:          { type: 'string', description: 'Task ID (for cancel)' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'heartbeat',
+    description: 'Ping a URL and report whether it is up or down, along with the response latency in milliseconds.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        url:     { type: 'string', description: 'URL to ping' },
+        timeout: { type: 'number', description: 'Request timeout in milliseconds (default: 5000)' },
+      },
+      required: ['url'],
+    },
+  },
+
+  // ── Agent Management ───────────────────────────────────────────────────────
+
+  {
+    name: 'session',
+    description: 'Inspect agent sessions. list: show all active groups/sessions with message counts; get: return current session metadata.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', description: 'list or get', enum: ['list', 'get'] },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'context',
+    description: 'Manage conversation context. get: return current injected context; inject: add extra text that will be prepended to the next system prompt turn; clear: remove injected context.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', description: 'get, inject, or clear', enum: ['get', 'inject', 'clear'] },
+        value:  { type: 'string', description: 'Text to inject (for inject action)' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'history',
+    description: 'Access conversation history for the current group. get: return last N messages; clear: delete all history for this group.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', description: 'get or clear', enum: ['get', 'clear'] },
+        limit:  { type: 'number', description: 'Number of messages to return (default: 20, for get)' },
+      },
+      required: ['action'],
+    },
+  },
+
+  // ── System Config ──────────────────────────────────────────────────────────
+
+  {
+    name: 'config',
+    description: 'Read or write MicroClaw configuration. get: return full config or a specific key; set: update a non-secret value.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', description: 'get or set', enum: ['get', 'set'] },
+        key:    { type: 'string', description: 'Config key to read or write (optional for get to return all)' },
+        value:  { type: 'string', description: 'New value (for set)' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'env',
+    description: 'Read safe, non-secret environment variables: PATH, HOME, USER, SHELL, NODE_ENV, PWD, TERM, LANG. API keys and secrets are never returned.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string', description: 'Specific variable name to read (optional; returns all safe vars if omitted)' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'logs',
+    description: 'Tail the MicroClaw application log (.micro/logs/app.log). Returns the last N lines.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        lines: { type: 'number', description: 'Number of lines to return (default: 50)' },
+      },
+      required: [],
+    },
+  },
+
+  // ── Infrastructure ─────────────────────────────────────────────────────────
+
+  {
+    name: 'get_skill',
+    description: 'Load the full instruction set for a skill by command name. ALWAYS call this first when the user invokes a skill command (e.g. "add-gmail", "status", "add-telegram"). Follow the returned instructions exactly.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'Skill command name without the leading slash, e.g. "add-gmail", "status"' },
+      },
+      required: ['command'],
     },
   },
 ];

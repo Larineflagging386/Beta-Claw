@@ -12,6 +12,9 @@ import { buildSystemPrompt } from './prompt-builder.js';
 import { TaskScheduler } from '../scheduler/task-scheduler.js';
 import { SkillWatcher } from './skill-watcher.js';
 import pino from 'pino';
+import { DB_PATH } from './paths.js';
+import { MessageQueue, type QueueConfig } from '../execution/message-queue.js';
+import { withRetry, getRetryConfig } from '../execution/retry-policy.js';
 
 interface OrchestratorEvent {
   type: 'message' | 'scheduled_task' | 'webhook' | 'ipc' | 'skill_reload' | 'shutdown';
@@ -28,7 +31,7 @@ interface OrchestratorConfig {
 }
 
 const DEFAULT_CONFIG: OrchestratorConfig = {
-  dbPath: 'microclaw.db',
+  dbPath: DB_PATH,
   profile: 'standard',
   maxConcurrentGroups: 3,
   logLevel: 'info',
@@ -41,8 +44,9 @@ class Orchestrator extends EventEmitter {
   private readonly channels: Map<string, IChannel> = new Map();
   private readonly providers: Map<string, IProviderAdapter> = new Map();
   private readonly registry: ProviderRegistry = new ProviderRegistry();
-  private readonly groupLocks = new Map<string, Promise<void>>();
+  private readonly messageQueue: MessageQueue = new MessageQueue();
   private readonly skillWatcher: SkillWatcher = new SkillWatcher();
+  private readonly queueConfig: Partial<QueueConfig> = { mode: 'collect', debounceMs: 1000, cap: 20, drop: 'summarize' };
   private catalog: ModelEntry[] = [];
   private scheduler: TaskScheduler | null = null;
   private running = false;
@@ -52,6 +56,20 @@ class Orchestrator extends EventEmitter {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.logger = pino({ level: this.config.logLevel });
     this.db = new MicroClawDB(this.config.dbPath, this.config.profile);
+
+    this.messageQueue.setHandler(async (entry) => {
+      const { msg, channel: ch } = entry;
+      await ch.sendTyping?.(msg.senderId).catch(() => {});
+      const response = await this.handleMessage(msg, ch).catch((e: unknown) => {
+        this.logger.error({ err: e, groupId: msg.groupId }, 'Error processing message');
+        return `Error: ${e instanceof Error ? e.message : String(e)}`;
+      });
+      const retryCfg = getRetryConfig(ch.id);
+      await withRetry(
+        () => ch.send({ groupId: msg.groupId, content: response }),
+        retryCfg,
+      );
+    });
 
     this.on('event', (event: OrchestratorEvent) => {
       void this.handleEvent(event);
@@ -143,23 +161,12 @@ class Orchestrator extends EventEmitter {
     return this.running;
   }
 
+  queueStats(): ReturnType<MessageQueue['stats']> {
+    return this.messageQueue.stats();
+  }
+
   private enqueue(msg: InboundMessage, channel: IChannel): void {
-    const existing = this.groupLocks.get(msg.groupId) ?? Promise.resolve();
-    const next = existing.then(async () => {
-      try {
-        // Show typing indicator while the agent is thinking
-        await channel.sendTyping?.(msg.senderId).catch(() => {});
-        const response = await this.handleMessage(msg, channel);
-        await channel.send({ groupId: msg.groupId, content: response });
-      } catch (e) {
-        this.logger.error({ err: e, groupId: msg.groupId }, 'Error processing message');
-        await channel.send({ groupId: msg.groupId, content: `Error: ${e instanceof Error ? e.message : String(e)}` }).catch(() => {});
-      }
-    });
-    this.groupLocks.set(msg.groupId, next);
-    next.finally(() => {
-      if (this.groupLocks.get(msg.groupId) === next) this.groupLocks.delete(msg.groupId);
-    });
+    this.messageQueue.enqueue(msg, channel, this.queueConfig);
   }
 
   private async handleMessage(msg: InboundMessage, channel: IChannel): Promise<string> {
@@ -178,7 +185,8 @@ class Orchestrator extends EventEmitter {
 
     this.db.updateGroupLastActive(msg.groupId);
 
-    const history = this.db.getMessages(msg.groupId, 20);
+    // Load up to 40 messages and let trimHistory budget them down to fit token limits
+    const history = this.db.getMessages(msg.groupId, 40);
     const messages = history.map(m => ({
       role: (m.sender_id === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
       content: m.content,
@@ -191,17 +199,13 @@ class Orchestrator extends EventEmitter {
     if (!provider) return `Provider ${sel.model.provider_id} not connected.`;
 
     const skills = this.skillWatcher.listSkills();
-    const systemPrompt = await buildSystemPrompt(msg.groupId, skills, {
-      senderId: msg.senderId,
-      channel: channel.id,
-    });
-
-    const whatsappChannel = this.channels.get('whatsapp');
-    const whatsappSend = whatsappChannel
-      ? async (to: string, message: string) => {
-          await whatsappChannel.send({ groupId: to, content: message });
-        }
-      : undefined;
+    const systemPrompt = await buildSystemPrompt(
+      msg.groupId,
+      skills,
+      { senderId: msg.senderId, channel: channel.id },
+      this.db,
+      msg.content,
+    );
 
     const response = await agentLoop(messages, {
       provider,
@@ -212,7 +216,6 @@ class Orchestrator extends EventEmitter {
       senderId: msg.senderId,
       onToolCall: (name) => this.logger.info({ tool: name }, 'Tool called'),
       onCronChange: () => this.scheduler?.refresh(),
-      whatsappSend,
     });
 
     const responseId = randomUUID();
