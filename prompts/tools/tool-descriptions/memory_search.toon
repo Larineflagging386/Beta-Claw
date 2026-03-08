@@ -1,0 +1,10 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:memory_search
+  category:memory
+  description:Search long-term memory using full-text search (FTS5). Returns the most relevant stored facts.
+  params:{
+    query:string (required) — what to search for in memory
+  }
+  hint:Call before answering questions about the user's preferences, past decisions, or project details.
+}

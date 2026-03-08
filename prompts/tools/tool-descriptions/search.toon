@@ -1,0 +1,12 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:search
+  category:filesystem
+  description:Search files by name (glob) or content (regex). Content search uses ripgrep when available.
+  params:{
+    pattern:string (required) — glob pattern (name search) or regex (content search)
+    path:string — root directory to search in (default: ".")
+    type:string — "name" or "content" (default: "name")
+  }
+  hint:Content search is fast for finding where a symbol is used across the codebase.
+}

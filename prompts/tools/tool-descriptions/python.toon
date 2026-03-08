@@ -1,0 +1,10 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:python
+  category:system
+  description:Execute a Python 3 code snippet and return stdout/stderr.
+  params:{
+    code:string (required) — Python 3 code to execute
+  }
+  hint:Ideal for calculations, data processing, CSV/JSON parsing, math, and scripting tasks.
+}

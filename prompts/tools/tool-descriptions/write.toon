@@ -1,0 +1,11 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:write
+  category:filesystem
+  description:Write or overwrite a file. Creates parent directories automatically.
+  params:{
+    path:string (required) — destination file path
+    content:string (required) — full content to write
+  }
+  hint:Bare filenames write to .workspace/work/. Always read before writing existing files.
+}

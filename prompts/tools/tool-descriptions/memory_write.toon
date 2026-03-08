@@ -1,0 +1,15 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:memory_write
+  category:memory
+  description:Write a fact, preference, or note to long-term memory (MEMORY.md). Persists across conversations.
+  params:{
+    content:string (required) — the fact or information to remember
+    section:string — memory section heading to write under (e.g. "User Preferences")
+  }
+  hint:|
+    Use for durable facts: user preferences, project decisions, anti-patterns, architecture choices.
+    For session notes: use append to memory/YYYY-MM-DD.md instead.
+    Always call when the user says "remember this."
+  |
+}

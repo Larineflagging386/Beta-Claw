@@ -1,0 +1,8 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:memory_read
+  category:memory
+  description:Read the full MEMORY.md file for the current group. Returns all stored facts and preferences.
+  params:{}
+  hint:Call at session start to load prior context. Keep MEMORY.md under 2000 tokens.
+}

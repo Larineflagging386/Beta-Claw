@@ -1,0 +1,11 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:list
+  category:filesystem
+  description:List a directory. Use recursive=true for a full tree view.
+  params:{
+    path:string (required) — directory path. Use "." for current directory.
+    recursive:boolean — include subdirectories recursively (default: false)
+  }
+  hint:Start with list(".") before writing files to understand the project layout.
+}

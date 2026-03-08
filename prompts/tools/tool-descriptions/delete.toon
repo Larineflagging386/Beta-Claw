@@ -1,0 +1,10 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:delete
+  category:filesystem
+  description:Delete a file or empty directory.
+  params:{
+    path:string (required) — path to delete
+  }
+  hint:Confirm with the user before deleting important files. Irreversible.
+}

@@ -1,0 +1,13 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:read
+  category:filesystem
+  description:Read file contents. Optionally slice to a line range.
+  params:{
+    path:string (required) — file path to read
+    offset:number — first line to read, 1-based (optional)
+    limit:number — max lines to return (optional)
+  }
+  blocked:secrets paths (.env, .micro/, creds.json, whatsapp-auth/)
+  hint:Use offset+limit to read large files in chunks without loading everything.
+}

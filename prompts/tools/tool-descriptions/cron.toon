@@ -1,0 +1,19 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:cron
+  category:automation
+  description:Manage recurring scheduled tasks.
+  params:{
+    action:string (required) — add | list | delete | update
+    name:string — task name (for add/update)
+    expr:string — cron expression, e.g. "0 9 * * 1-5" (for add/update)
+    instruction:string — what to do when the task fires (for add/update)
+    id:string — task ID (for delete/update)
+  }
+  hint:|
+    ALWAYS call cron{action:"list"} before adding or deleting — never create duplicates.
+    After adding: confirm once then STOP. Do not add more tasks.
+    After deleting: do NOT recreate the task unless explicitly asked.
+    Instructions must specify the exact action: "send WhatsApp to <JID> saying <text>".
+  |
+}

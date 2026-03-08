@@ -1,0 +1,16 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:exec
+  category:system
+  description:Run any shell command via bash. The primary action tool.
+  params:{
+    cmd:string (required) — shell command to execute
+    cwd:string — working directory (optional, defaults to project root)
+  }
+  hint:|
+    Use for: git, npm, pnpm, mkdir, cp, mv, curl, python, node, any CLI tool.
+    NEVER say you can't do something if exec can do it — use exec instead.
+    Always check exit codes. Pipe stderr when you need to see errors: cmd 2>&1
+    Avoid destructive commands (rm -rf, DROP TABLE) without user confirmation.
+  |
+}

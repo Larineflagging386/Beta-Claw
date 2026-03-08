@@ -1,0 +1,15 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:web_search
+  category:web
+  description:Search the web via Brave or Serper and return top results.
+  params:{
+    query:string (required) — search query (concise, keyword-rich, max 10 words)
+  }
+  hint:|
+    Use for: current events, documentation, prices, package versions, bug fixes.
+    Prefer over LLM knowledge when recency matters or when you need specific facts.
+    Combine with web_fetch to get full content from promising results.
+    Formulate as keyword phrases, not natural language questions.
+  |
+}

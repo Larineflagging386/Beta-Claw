@@ -1,0 +1,15 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:get_skill
+  category:infrastructure
+  description:Load the full instruction set for a skill by command name. Returns the SKILL.md contents.
+  params:{
+    command:string (required) — skill command name, e.g. "add-gmail", "status", "add-telegram"
+  }
+  hint:|
+    ALWAYS call this first when the user invokes a skill command.
+    Then read the returned instructions carefully and follow them exactly.
+    Available skills: add-gmail, add-telegram, add-discord, add-slack, add-signal,
+    add-brave, add-serper, add-openrouter, status, customize, debug, export, rollback
+  |
+}

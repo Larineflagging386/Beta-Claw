@@ -1,0 +1,13 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:web_fetch
+  category:web
+  description:Make an HTTP request (GET/POST/PUT/PATCH/DELETE) and return the response body.
+  params:{
+    url:string (required) — full URL
+    method:string — HTTP method (default: GET)
+    headers:string — JSON string of request headers
+    body:string — request body for POST/PUT/PATCH
+  }
+  hint:Use for REST APIs, webhooks, fetching full page content, or any raw HTTP call.
+}

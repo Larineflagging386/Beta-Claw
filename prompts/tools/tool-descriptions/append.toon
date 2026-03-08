@@ -1,0 +1,11 @@
+# version:2.0 | updated:2026-03-08 | author:microclaw
+@tool{
+  name:append
+  category:filesystem
+  description:Append text to the end of a file. Creates the file if it does not exist.
+  params:{
+    path:string (required) — file path to append to
+    content:string (required) — content to append
+  }
+  hint:Use for daily memory logs (memory/YYYY-MM-DD.md) and append-only files.
+}
