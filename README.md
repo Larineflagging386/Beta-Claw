@@ -1,5 +1,5 @@
-# [Betaclaw](./banner.jpeg)
-
+# ![Betaclaw](./banner.jpeg)
+#                        BetaClaw
 **Token-optimized AI assistant with multi-provider support**
 
 betaclaw is an open, provider-agnostic AI agent runtime that routes requests across 12 providers, compresses prompts with its custom TOON format, and orchestrates multi-agent workflows — all from a single CLI or HTTP interface.

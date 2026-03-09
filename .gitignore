@@ -64,6 +64,7 @@ microclaw.md
 betaclaw.db
 betaclaw.db-wal
 betaclaw.db-shm
+demo.cast
 
 # Group workspaces
 groups/*/workspace/
