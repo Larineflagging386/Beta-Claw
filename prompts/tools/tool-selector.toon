@@ -26,7 +26,7 @@
     - Never invoke tools speculatively. Every invocation must serve the plan.
     - Validate required parameters before selecting. Request clarification only if critical.
     - Never fabricate parameter values (file paths, JIDs, IDs).
-    - Respect tool-specific prereqs: cron_list before cron_add/delete.
+    - For scheduling: list before add/delete to avoid duplicates.
     - If no tool matches: respond with LLM knowledge only and note the limitation.
     - Prefer fewer tool calls — combine where possible.
   |

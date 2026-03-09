@@ -59,15 +59,24 @@ export async function agentLoop(messages: Message[], cfg: LoopConfig): Promise<s
       response = await cfg.provider.complete({
         model: cfg.model.id,
         messages: trimmed,
-        maxTokens: 2048,
+        maxTokens: 8192,
         systemPrompt: cfg.systemPrompt,
         tools,
       });
     } catch (e) {
-      // Log for debugging but never forward raw provider/Zod error text to the user.
       const detail = e instanceof Error ? e.message : String(e);
       cfg.onToolCall?.('_error', {}, detail);
-      return "I hit a snag on my end — could you try that again?";
+
+      // Retryable provider errors (malformed tool call, unexpected shape):
+      // feed the error back so the model can try a different approach.
+      const retryable = /malformed tool call|unexpected response/i.test(detail);
+      if (retryable && i < max - 1) {
+        hist.push({ role: 'assistant', content: '[attempted tool call — failed]' });
+        hist.push({ role: 'user', content: 'Your previous tool call was malformed. Try again — either call the tool with simpler arguments or respond with text only.' });
+        continue;
+      }
+
+      return "I hit a snag on my end \u2014 could you try that again?";
     }
 
     const calls = extractCalls(response);

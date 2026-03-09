@@ -500,6 +500,9 @@ class Orchestrator extends EventEmitter {
       catalog: this.catalog,
     }).catch(() => { /* swallow silently */ });
 
+    // Pick up any newly-added recurring tasks so they don't require a daemon restart
+    this.scheduler?.refresh();
+
     return { response, modelId: sel.model.id };
   }
 

@@ -72,7 +72,19 @@ export class ToolExecutor {
     fs.writeFileSync(abs, content, 'utf-8');
     const rel    = path.relative(this.workspaceDir, abs);
     const absStr = path.resolve(abs);
-    return `Written: ${rel} (${content.length} bytes)\nFull path: ${absStr}\nTo run: exec cmd="node ${rel}"`;
+
+    const ext = path.extname(rel).toLowerCase();
+    let hint: string;
+    if (['.html', '.htm', '.css', '.svg'].includes(ext)) {
+      hint = 'Static file — user can open directly in a browser. Do NOT run with node.';
+    } else if (['.sh', '.bash'].includes(ext)) {
+      hint = `To run: exec cmd="bash ${rel}"`;
+    } else if (['.py'].includes(ext)) {
+      hint = `To run: exec cmd="python3 ${rel}"`;
+    } else {
+      hint = `To run: exec cmd="node ${rel}"`;
+    }
+    return `Written: ${rel} (${content.length} bytes)\nFull path: ${absStr}\n${hint}`;
   }
 
   private async exec(cmd: string, cwd?: string, timeout = 30_000, background = false): Promise<string> {

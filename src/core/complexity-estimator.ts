@@ -74,9 +74,9 @@ const CONTEXT_STANDARD_RE = [
   /\b(csv|json|yaml|sql|html|css|script)\b/i,
 ];
 
-export function inferContextFloor(history: HistoryMessage[], windowSize = 3): Tier {
-  // Only scan user messages — assistant replies and tool results contain code/filenames
-  // that would falsely inflate the floor tier.
+export function inferContextFloor(history: HistoryMessage[], windowSize = 6): Tier {
+  // Scan recent user messages for task-level context so that short continuations
+  // ("yes", "ok") still inherit the tier from the original request.
   const userMessages = history.filter(m => m.role === 'user');
   const recent = userMessages.slice(-windowSize);
   const text   = recent.map(m => m.content).join('\n');
