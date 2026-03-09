@@ -62,7 +62,7 @@ If you want a fast, pragmatic agent runtime that you can actually read and custo
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/your-org/betaclaw.git
+git clone https://github.com/rawknee-69/Beta-Claw.git
 cd betaclaw
 ```
 
