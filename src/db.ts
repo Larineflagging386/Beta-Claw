@@ -216,8 +216,10 @@ CREATE TABLE IF NOT EXISTS scheduled_tasks (
   enabled INTEGER DEFAULT 1,
   last_run INTEGER,
   next_run INTEGER,
-  created_at INTEGER DEFAULT (unixepoch())
+  created_at INTEGER DEFAULT (unixepoch()),
+  UNIQUE(name, group_id)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sched_name_group ON scheduled_tasks(name, group_id);
 
 -- Groups
 CREATE TABLE IF NOT EXISTS groups (
@@ -445,7 +447,7 @@ class MicroClawDB {
     const validated = ScheduledTaskSchema.parse(task);
     this.db
       .prepare(
-        `INSERT INTO scheduled_tasks (id, group_id, name, cron, instruction, enabled, last_run, next_run)
+        `INSERT OR REPLACE INTO scheduled_tasks (id, group_id, name, cron, instruction, enabled, last_run, next_run)
        VALUES (@id, @group_id, @name, @cron, @instruction, @enabled, @last_run, @next_run)`,
       )
       .run(validated);
@@ -467,6 +469,13 @@ class MicroClawDB {
     this.db
       .prepare('DELETE FROM scheduled_tasks WHERE id = ? AND group_id = ?')
       .run(id, groupId);
+  }
+
+  deleteScheduledTasksByGroup(groupId: string): number {
+    const result = this.db
+      .prepare('DELETE FROM scheduled_tasks WHERE group_id = ?')
+      .run(groupId);
+    return result.changes;
   }
 
   updateTaskLastRun(id: string, lastRun: number, nextRun: number): void {

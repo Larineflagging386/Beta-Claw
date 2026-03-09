@@ -2,13 +2,12 @@ import { Command } from 'commander';
 import { randomUUID } from 'node:crypto';
 import dotenv from 'dotenv';
 import { oneShotScheduler, OneShotScheduler } from '../../execution/one-shot-scheduler.js';
+import { TaskScheduler } from '../../scheduler/task-scheduler.js';
 dotenv.config();
 
 async function getDB() {
   const { MicroClawDB } = await import('../../db.js');
   const { DB_PATH } = await import('../../core/paths.js');
-  // Prefer the env var set by the daemon so the path is always absolute
-  // regardless of the cwd this subprocess was launched from.
   return new MicroClawDB(process.env['MICROCLAW_DB'] ?? DB_PATH);
 }
 
@@ -23,9 +22,14 @@ scheduleCommand
   .requiredOption('--instruction <text>', 'What the agent should do when this fires')
   .option('--group <groupId>', 'Target group/chat to deliver message to', 'default')
   .action(async (opts: { cron: string; name: string; instruction: string; group: string }) => {
+    if (!TaskScheduler.validateMinInterval(opts.cron)) {
+      console.error(`Rejected: interval too short (minimum 10 seconds). Use a longer interval.`);
+      process.exit(1);
+    }
     const db = await getDB();
     const id = randomUUID();
     try {
+      const existing = db.getEnabledTasks().find(t => t.name === opts.name && t.group_id === opts.group);
       db.insertScheduledTask({
         id,
         group_id: opts.group,
@@ -36,8 +40,11 @@ scheduleCommand
         last_run: null,
         next_run: null,
       });
-      console.log(`\u2713 Task added: ${opts.name} (${opts.cron}) → ID: ${id}`);
-      console.log(`  Restart microclaw for it to take effect.`);
+      if (existing) {
+        console.log(`\u2713 Task replaced: ${opts.name} (old ${existing.id.slice(0, 8)} → new ${id.slice(0, 8)}) cron=${opts.cron}`);
+      } else {
+        console.log(`\u2713 Task added: ${opts.name} (${opts.cron}) → ID: ${id}`);
+      }
     } catch (e) {
       console.error(`Failed to add task: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -149,6 +156,20 @@ scheduleCommand
     try {
       const count = db.cancelPendingOnceTasksByGroup(opts.group);
       console.log(`Cancelled ${count} pending reminder(s) for group ${opts.group}`);
+    } finally {
+      db.close();
+    }
+  });
+
+scheduleCommand
+  .command('remove-group')
+  .description('Remove ALL recurring cron tasks for a group (daemon picks up removal on next refresh)')
+  .requiredOption('--group <groupId>', 'Target group/chat')
+  .action(async (opts: { group: string }) => {
+    const db = await getDB();
+    try {
+      const count = db.deleteScheduledTasksByGroup(opts.group);
+      console.log(`Removed ${count} recurring task(s) for group ${opts.group}`);
     } finally {
       db.close();
     }

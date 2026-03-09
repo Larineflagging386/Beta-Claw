@@ -17,14 +17,17 @@ export interface TaskFiredEvent {
   scheduledTime: Date;
 }
 
+const MIN_INTERVAL_SEC = 10;
+
 export class TaskScheduler extends EventEmitter {
   private jobs = new Map<string, cron.ScheduledTask>();
+  private running = new Set<string>();
 
   constructor(
     private db: MicroClawDB,
     private registry?: ProviderRegistry,
     private catalog?: ModelEntry[],
-    _whatsappSend?: WhatsAppSendFn,    // kept for backward compatibility; no longer used
+    _whatsappSend?: WhatsAppSendFn,
     private onMessage?: (groupId: string, text: string) => Promise<void>,
   ) {
     super();
@@ -41,6 +44,7 @@ export class TaskScheduler extends EventEmitter {
   stop(): void {
     for (const job of this.jobs.values()) job.stop();
     this.jobs.clear();
+    this.running.clear();
   }
 
   schedule(task: ScheduledTask): void {
@@ -72,6 +76,21 @@ export class TaskScheduler extends EventEmitter {
   }
 
   private async runTask(task: ScheduledTask): Promise<void> {
+    if (!this.jobs.has(task.id)) return;
+
+    const fresh = this.db.getEnabledTasks().find(t => t.id === task.id);
+    if (!fresh) {
+      console.log(`[cron] Task ${task.id} no longer in DB — skipping and unscheduling`);
+      this.unschedule(task.id);
+      return;
+    }
+
+    if (this.running.has(task.id)) {
+      console.log(`[cron] Task ${task.id} still running from previous tick — skipping`);
+      return;
+    }
+
+    this.running.add(task.id);
     console.log(`[cron] Running task: ${task.name} (${task.id})`);
 
     this.emit('task:fired', {
@@ -83,11 +102,13 @@ export class TaskScheduler extends EventEmitter {
 
     if (!this.registry || !this.catalog) {
       console.warn(`[cron] Task ${task.id} skipped — no registry/catalog`);
+      this.running.delete(task.id);
       return;
     }
 
     if (!this.onMessage) {
       console.warn(`[cron] Task ${task.id} has no delivery channel — onMessage not configured`);
+      this.running.delete(task.id);
       return;
     }
 
@@ -95,12 +116,11 @@ export class TaskScheduler extends EventEmitter {
 
     try {
       const sel = selectModel(this.catalog, task.instruction);
-      if (!sel) { console.warn('[cron] No model available'); return; }
+      if (!sel) { console.warn('[cron] No model available'); this.running.delete(task.id); return; }
 
       const provider = this.registry.get(sel.model.provider_id);
-      if (!provider) { console.warn(`[cron] Provider ${sel.model.provider_id} not found`); return; }
+      if (!provider) { console.warn(`[cron] Provider ${sel.model.provider_id} not found`); this.running.delete(task.id); return; }
 
-      // Extract sender JID from group_id for cron context (stored as senderId when task was created)
       const senderJid = task.group_id.includes('@') ? task.group_id : undefined;
       const systemPrompt = await buildSystemPrompt(task.group_id, undefined, {
         senderId: senderJid,
@@ -116,6 +136,14 @@ export class TaskScheduler extends EventEmitter {
       );
     } catch (e) {
       console.error(`[cron] Task ${task.id} agentLoop failed:`, e);
+      this.running.delete(task.id);
+      return;
+    }
+
+    this.running.delete(task.id);
+
+    if (!this.jobs.has(task.id)) {
+      console.log(`[cron] Task ${task.id} was removed while running — discarding response`);
       return;
     }
 
@@ -126,7 +154,6 @@ export class TaskScheduler extends EventEmitter {
 
     try {
       await this.onMessage(task.group_id, response);
-      // Mark as run only after successful delivery
       this.db.updateTaskLastRunOnly(task.id, Date.now());
       console.log(`[cron] Task ${task.id} delivered to ${task.group_id}`);
     } catch (e) {
@@ -137,14 +164,42 @@ export class TaskScheduler extends EventEmitter {
   unschedule(id: string): void {
     this.jobs.get(id)?.stop();
     this.jobs.delete(id);
+    this.running.delete(id);
   }
 
   refresh(): void {
     const tasks = this.db.getEnabledTasks();
+    const dbIds = new Set(tasks.map(t => t.id));
+
+    for (const id of this.jobs.keys()) {
+      if (!dbIds.has(id)) {
+        console.log(`[cron] Unscheduling removed task ${id}`);
+        this.unschedule(id);
+      }
+    }
+
     for (const task of tasks) {
-      if (task.enabled && !this.jobs.has(task.id)) {
+      if (!this.jobs.has(task.id)) {
         this.schedule(task);
       }
     }
+  }
+
+  static validateMinInterval(cronExpr: string): boolean {
+    if (!cron.validate(cronExpr)) return false;
+    const parts = cronExpr.trim().split(/\s+/);
+    if (parts.length !== 6) return true;
+    const secField = parts[0]!;
+    if (secField.startsWith('*/')) {
+      const interval = parseInt(secField.slice(2), 10);
+      if (!isNaN(interval) && interval < MIN_INTERVAL_SEC) return false;
+    }
+    if (secField.includes(',')) {
+      const vals = secField.split(',').map(v => parseInt(v, 10)).filter(v => !isNaN(v)).sort((a, b) => a - b);
+      for (let i = 1; i < vals.length; i++) {
+        if (vals[i]! - vals[i - 1]! < MIN_INTERVAL_SEC) return false;
+      }
+    }
+    return true;
   }
 }
