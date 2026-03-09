@@ -57,6 +57,8 @@ If you want a fast, pragmatic agent runtime that you can actually read and custo
 
 ## Quick Start
 
+![Beta-Claw Installation/Setup](./demo.gif)
+
 ### 1. Clone the repo
 
 ```bash
