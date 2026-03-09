@@ -24,6 +24,7 @@ import { extractAndPersist } from '../memory/post-turn-extractor.js';
 import { hookRegistry } from '../hooks/hook-registry.js';
 import { sendWithInterception } from '../channels/response-interceptor.js';
 import { stopAllContainers, DEFAULT_SANDBOX_CONFIG, type SandboxRunOptions, type SandboxConfig } from '../execution/sandbox.js';
+import { processManager } from '../execution/process-manager.js';
 import { z } from 'zod';
 import { initGmailManager, gmailManager } from '../gmail/gmail-manager.js';
 import { browserManager } from '../browser/browser-manager.js';
@@ -278,6 +279,21 @@ class Orchestrator extends EventEmitter {
     // ClawHub background sync (every 24h, checks for skill updates)
     scheduleClawHubSync();
 
+    // Background process manager — delivers results when bg execs complete
+    processManager.init(async (groupId, _procId, result) => {
+      const prefix = groupId.split('_')[0] ?? '';
+      const targetChannel = Array.from(this.channels.values()).find(c =>
+        (prefix === 'tg' && c.id === 'telegram') ||
+        (prefix === 'dc' && c.id === 'discord') ||
+        (c.id === 'whatsapp'),
+      ) ?? Array.from(this.channels.values())[0];
+      if (targetChannel) {
+        if (this.config.verbose) vlog('PROC', VC.blue, groupId, result.slice(0, 80));
+        await targetChannel.send({ groupId, content: result })
+          .catch(e => this.logger.warn({ err: e, groupId }, 'Background process result delivery failed'));
+      }
+    });
+
     this.processPendingIpc();
     this.startOnceTaskPoller();
     this.logger.info('Orchestrator started — event-driven with agent loop');
@@ -291,6 +307,7 @@ class Orchestrator extends EventEmitter {
     this.scheduler?.stop();
     this.heartbeatScheduler?.stop();
     this.skillWatcher.close();
+    processManager.stop();
     stopClawHubSync();
 
     for (const [, channel] of this.channels) {

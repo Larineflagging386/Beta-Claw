@@ -36,15 +36,28 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: 'exec',
-    description: 'Run a shell command via bash -c. Default working directory is the group workspace (.workspaces/{groupId}/), so use relative paths (e.g. "node skills/weather.js"). Returns stdout, stderr, exit code.',
+    description: 'Run a shell command via bash -c. Default working directory is the group workspace (.workspaces/{groupId}/), so use relative paths (e.g. "node skills/weather.js"). Returns stdout, stderr, exit code. Set background=true for long-running commands — returns immediately with a process ID; result is delivered automatically when done.',
     input_schema: {
       type: 'object',
       properties: {
-        cmd:     { type: 'string', description: 'Shell command (use relative paths — cwd is workspace root)' },
-        cwd:     { type: 'string', description: 'Override working directory (optional absolute path)' },
-        timeout: { type: 'number', description: 'Timeout ms, default 30000' },
+        cmd:        { type: 'string',  description: 'Shell command (use relative paths — cwd is workspace root)' },
+        cwd:        { type: 'string',  description: 'Override working directory (optional absolute path)' },
+        timeout:    { type: 'number',  description: 'Timeout ms, default 30000 (ignored when background=true)' },
+        background: { type: 'boolean', description: 'Run in background — returns process ID immediately, result sent when complete' },
       },
       required: ['cmd'],
+    },
+  },
+  {
+    name: 'process',
+    description: 'Manage background processes. List all running processes, get output/status of a specific process, or kill one.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', description: 'list | status | output | kill', enum: ['list', 'status', 'output', 'kill'] },
+        id:     { type: 'string', description: 'Process ID (from exec background=true). Required for status/output/kill.' },
+      },
+      required: ['action'],
     },
   },
   {

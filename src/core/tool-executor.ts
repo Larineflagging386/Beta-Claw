@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import type { SandboxRunOptions } from '../execution/sandbox.js';
 import { sandboxedExec } from '../execution/sandbox.js';
+import { processManager } from '../execution/process-manager.js';
 import { PATHS } from './paths.js';
 import { ensureWorkspace } from './workspace.js';
 import { scoreSuspicion, formatSuspicionWarning } from '../security/suspicious-command.js';
@@ -29,7 +30,8 @@ export class ToolExecutor {
       switch (name) {
         case 'read':         return this.read(args['path'] as string, args['offset'] as number | undefined, args['limit'] as number | undefined);
         case 'write':        return this.write(args['path'] as string, args['content'] as string);
-        case 'exec':         return await this.exec(args['cmd'] as string, args['cwd'] as string | undefined, args['timeout'] as number | undefined);
+        case 'exec':         return await this.exec(args['cmd'] as string, args['cwd'] as string | undefined, args['timeout'] as number | undefined, args['background'] as boolean | undefined);
+        case 'process':      return this.manageProccess(args['action'] as string, args['id'] as string | undefined);
         case 'list':         return this.list(args['path'] as string, args['recursive'] as boolean | undefined);
         case 'web_search':   return await this.webSearch(args['query'] as string);
         case 'web_fetch':    return await this.webFetch(args['url'] as string, args['method'] as string | undefined, args['headers'] as Record<string,string> | undefined, args['body'] as string | undefined);
@@ -73,7 +75,7 @@ export class ToolExecutor {
     return `Written: ${rel} (${content.length} bytes)\nFull path: ${absStr}\nTo run: exec cmd="node ${rel}"`;
   }
 
-  private async exec(cmd: string, cwd?: string, timeout = 30_000): Promise<string> {
+  private async exec(cmd: string, cwd?: string, timeout = 30_000, background = false): Promise<string> {
     for (const b of BLOCKED) {
       if (cmd.includes(b)) return 'Blocked: dangerous command pattern detected';
     }
@@ -91,7 +93,23 @@ export class ToolExecutor {
     }
 
     const effectiveCwd = cwd ?? this.workspaceDir;
+
+    if (background) {
+      const pid = processManager.launch(cmd, effectiveCwd, this.groupId);
+      return `Background process started: ${pid}\nCommand: ${cmd}\nResult will be sent automatically when complete. Use process tool with action=status or id=${pid} to check.`;
+    }
+
     return sandboxedExec(cmd, effectiveCwd, this.sandboxOpts, timeout);
+  }
+
+  private manageProccess(action: string, id?: string): string {
+    switch (action) {
+      case 'list':   return processManager.list(this.groupId);
+      case 'status': return id ? processManager.status(id) : processManager.list(this.groupId);
+      case 'output': return id ? processManager.output(id) : 'Provide a process id';
+      case 'kill':   return id ? processManager.kill(id)   : 'Provide a process id to kill';
+      default:       return `Unknown action: ${action}. Use list | status | output | kill`;
+    }
   }
 
   private list(dirPath: string, recursive = false): string {
