@@ -2,18 +2,18 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { MicroClawDB } from '../../src/db.js';
+import { betaclawDB } from '../../src/db.js';
 import { SemanticMemory } from '../../src/memory/semantic.js';
 
 describe('SemanticMemory', () => {
   let tmpDir: string;
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let memory: SemanticMemory;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'semantic-test-'));
     const dbPath = path.join(tmpDir, 'test.db');
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
     memory = new SemanticMemory(db);
   });
 

@@ -91,7 +91,7 @@ describe('EpisodicMemory', () => {
     expect(memory.exists('group-1')).toBe(true);
   });
 
-  it('parses MicroClaw Config section with TOON block', async () => {
+  it('parses betaclaw Config section with TOON block', async () => {
     const content = [
       '# Group: Family Chat',
       'Created: 2025-01-15',
@@ -99,7 +99,7 @@ describe('EpisodicMemory', () => {
       '## Memory',
       'Standard notes here',
       '',
-      '## MicroClaw Config',
+      '## betaclaw Config',
       '@group{',
       '  triggerWord:@rem',
       '  allowedTools:[brave_search, fetch_url]',
@@ -126,7 +126,7 @@ describe('EpisodicMemory', () => {
   });
 
   it('returns null for getGroupConfig with invalid TOON', async () => {
-    const content = '# Group: Bad\n\n## MicroClaw Config\nnot valid toon at all\n';
+    const content = '# Group: Bad\n\n## betaclaw Config\nnot valid toon at all\n';
     await memory.write('bad', content);
 
     const config = await memory.getGroupConfig('bad');

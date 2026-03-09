@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import dotenv from 'dotenv';
-import { MicroClawDB } from '../../db.js';
+import { betaclawDB } from '../../db.js';
 import { DB_PATH, GROUPS_DIR, SOUL_FILENAME } from '../../core/paths.js';
 import { DEFAULT_SANDBOX_CONFIG, type SandboxRunOptions } from '../../execution/sandbox.js';
 import { ProviderRegistry } from '../../core/provider-registry.js';
@@ -26,15 +26,15 @@ interface ChatOptions {
 }
 
 function warnLegacyPaths(): void {
-  if (fs.existsSync('microclaw.db')) {
+  if (fs.existsSync('betaclaw.db')) {
     console.warn(
-      `\n[MicroClaw] MIGRATION: Found legacy microclaw.db at project root.\n` +
-      `  Run: mkdir -p .workspace/db && mv microclaw.db .workspace/db/microclaw.db\n`,
+      `\n[betaclaw] MIGRATION: Found legacy betaclaw.db at project root.\n` +
+      `  Run: mkdir -p .workspace/db && mv betaclaw.db .workspace/db/betaclaw.db\n`,
     );
   }
   if (fs.existsSync('groups') && fs.statSync('groups').isDirectory()) {
     console.warn(
-      `[MicroClaw] MIGRATION: Found legacy groups/ at project root.\n` +
+      `[betaclaw] MIGRATION: Found legacy groups/ at project root.\n` +
       `  Run: mkdir -p .workspace && mv groups .workspace/groups\n`,
     );
   }
@@ -45,14 +45,14 @@ async function startChat(options: ChatOptions): Promise<void> {
   warnLegacyPaths();
 
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  const db = new MicroClawDB(DB_PATH);
+  const db = new betaclawDB(DB_PATH);
   const registry = new ProviderRegistry();
   const registered = registerAvailableProviders(registry);
 
   if (registry.size() === 0) {
     console.log(
       '\n  No AI providers configured.\n\n' +
-      '  Run "microclaw setup" to configure a provider, or set one of these:\n\n' +
+      '  Run "betaclaw setup" to configure a provider, or set one of these:\n\n' +
       '    OPENROUTER_API_KEY   200+ models via one key (recommended)\n' +
       '    ANTHROPIC_API_KEY    Claude models\n' +
       '    OPENAI_API_KEY       GPT-4o, o3\n' +
@@ -122,7 +122,7 @@ async function startChat(options: ChatOptions): Promise<void> {
 
   let lastTurnUsedTool = false;
 
-  console.log('\nMicroClaw v3.0 \u2014 Interactive Chat');
+  console.log('\nbetaclaw v3.0 \u2014 Interactive Chat');
   console.log(`Providers: ${registered.join(', ')}`);
   console.log(`Models available: ${catalog.length}`);
   console.log(`Group: ${groupId}`);

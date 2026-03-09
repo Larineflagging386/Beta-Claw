@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
-import type { MicroClawDB } from '../db.js';
+import type { betaclawDB } from '../db.js';
 
 const ExternalChunkConfigSchema = z.object({
   maxChunkSize: z.number().int().positive().optional(),
@@ -18,10 +18,10 @@ const DEFAULT_CHUNK_SIZE = 500;
 const DEFAULT_CHUNK_OVERLAP = 50;
 
 class RagIndexer {
-  private readonly db: MicroClawDB;
+  private readonly db: betaclawDB;
   private readonly config: ChunkConfig;
 
-  constructor(db: MicroClawDB, config?: Partial<ChunkConfig>) {
+  constructor(db: betaclawDB, config?: Partial<ChunkConfig>) {
     const validated = ExternalChunkConfigSchema.parse(config ?? {});
     this.db = db;
     this.config = {

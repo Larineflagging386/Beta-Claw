@@ -1,4 +1,4 @@
-# version:2.0 | updated:2026-03-08 | author:microclaw
+# version:2.0 | updated:2026-03-08 | author:betaclaw
 @agent{
   name:CitationFormatter
   role:format inline citations and reference lists for user-facing responses

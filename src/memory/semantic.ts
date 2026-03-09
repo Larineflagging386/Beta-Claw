@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { MicroClawDB } from '../db.js';
+import type { betaclawDB } from '../db.js';
 
 interface SearchResult {
   chunkId: string;
@@ -22,9 +22,9 @@ const IndexInputSchema = z.object({
 const SearchQuerySchema = z.string().min(1);
 
 class SemanticMemory {
-  private readonly db: MicroClawDB;
+  private readonly db: betaclawDB;
 
-  constructor(db: MicroClawDB) {
+  constructor(db: betaclawDB) {
     this.db = db;
   }
 

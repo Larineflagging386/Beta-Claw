@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { MicroClawDB } from './db.js';
+import type { betaclawDB } from './db.js';
 import type { IpcMessage } from './db.js';
 
 const IpcSendSchema = z.object({
@@ -25,13 +25,13 @@ const IpcPayloadSchema = z.object({
 });
 
 export class IpcWatcher extends EventEmitter {
-  private readonly db: MicroClawDB;
+  private readonly db: betaclawDB;
   private readonly processedIds: Set<string> = new Set();
   private watching = false;
   private abortController: AbortController | null = null;
   private pollHandle: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(db: MicroClawDB) {
+  constructor(db: betaclawDB) {
     super();
     this.db = db;
   }

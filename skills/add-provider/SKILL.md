@@ -11,12 +11,12 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Add Provider Skill
+# betaclaw Add Provider Skill
 
-You are the generic provider setup assistant. Help the user add any supported AI provider to MicroClaw.
+You are the generic provider setup assistant. Help the user add any supported AI provider to betaclaw.
 
 ## When Invoked
 
@@ -82,7 +82,7 @@ If the user selects OpenRouter, redirect to the dedicated `/add-openrouter` skil
 1. Register the provider adapter in the provider registry.
 2. Fetch and cache the model catalog.
 3. Assign models to tiers (Nano/Standard/Pro/Max).
-4. Update `.micro/config.toon` with the new provider in the `configured` list.
+4. Update `.beta/config.toon` with the new provider in the `configured` list.
 5. Ask if this should be the new default provider.
 6. Report:
    - Provider added successfully
@@ -93,7 +93,7 @@ If the user selects OpenRouter, redirect to the dedicated `/add-openrouter` skil
 ## Multiple Providers
 
 When the user has multiple providers:
-- MicroClaw automatically selects the best model across all providers for each task.
+- betaclaw automatically selects the best model across all providers for each task.
 - Model selection uses: `(capability_rank × 0.4) + (speed_rank × 0.3) + (cost_efficiency × 0.3)`.
 - Fallback: if the selected model's provider is down, automatically try the next best from another provider.
 - Run `/customize` > Providers to change the default or adjust preferences.

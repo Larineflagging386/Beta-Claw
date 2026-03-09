@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ToolCache, computeInputHash } from '../../src/core/tool-cache.js';
-import { MicroClawDB } from '../../src/db.js';
+import { betaclawDB } from '../../src/db.js';
 import { encode } from '../../src/core/toon-serializer.js';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -8,18 +8,18 @@ import path from 'node:path';
 import os from 'node:os';
 
 function tmpDbPath(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'microclaw-cache-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'betaclaw-cache-test-'));
   return path.join(dir, 'test.db');
 }
 
 describe('ToolCache', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
   let cache: ToolCache;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
     cache = new ToolCache(db);
   });
 

@@ -1,10 +1,10 @@
 ---
 name: clawhub
 command: /clawhub
-description: Browse ClawHub for skills, download them, and auto-convert to MicroClaw format.
+description: Browse ClawHub for skills, download them, and auto-convert to betaclaw format.
 allowed-tools: ["web_fetch", "exec", "write", "read", "list"]
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
 # ClawHub Skill Discovery

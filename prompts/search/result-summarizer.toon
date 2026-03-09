@@ -1,4 +1,4 @@
-# version:2.0 | updated:2026-03-08 | author:microclaw
+# version:2.0 | updated:2026-03-08 | author:betaclaw
 @agent{
   name:ResultSummarizer
   role:distill raw search results into accurate, cited context

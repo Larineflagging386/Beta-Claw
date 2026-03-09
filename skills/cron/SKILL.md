@@ -1,7 +1,7 @@
 ---
 name: cron
 command: /cron
-description: Manage recurring scheduled tasks — supports sub-minute intervals via MicroClaw's internal scheduler, and minute-level tasks via system crontab
+description: Manage recurring scheduled tasks — supports sub-minute intervals via betaclaw's internal scheduler, and minute-level tasks via system crontab
 allowed-tools: ["exec", "read"]
 version: 2.0.0
 ---
@@ -10,10 +10,10 @@ version: 2.0.0
 
 Two scheduling systems are available. Choose the right one based on the interval:
 
-## MicroClaw Internal Scheduler (preferred — supports seconds)
+## betaclaw Internal Scheduler (preferred — supports seconds)
 
 Use this for **any interval**, including sub-minute (every 30 seconds, every 5 minutes, etc.).
-Tasks run inside MicroClaw and can send messages back to the user.
+Tasks run inside betaclaw and can send messages back to the user.
 
 ### Cron expression format (6-field, seconds supported)
 
@@ -39,7 +39,7 @@ Common examples:
 ### Add a task
 
 ```
-exec: microclaw schedule add --cron "*/30 * * * * *" --name "check-in" --instruction "Send a warm check-in message to the user" --group GROUP_ID
+exec: betaclaw schedule add --cron "*/30 * * * * *" --name "check-in" --instruction "Send a warm check-in message to the user" --group GROUP_ID
 ```
 
 Replace `GROUP_ID` with the actual group/chat JID (e.g. `48434866319368@lid`).
@@ -48,13 +48,13 @@ If sending to the CLI, use `--group default`.
 ### List tasks
 
 ```
-exec: microclaw schedule list
+exec: betaclaw schedule list
 ```
 
 ### Remove a task
 
 ```
-exec: microclaw schedule remove TASK_ID_OR_NAME
+exec: betaclaw schedule remove TASK_ID_OR_NAME
 ```
 
 Use the ID prefix (first 8 chars) or the exact task name.
@@ -78,7 +78,7 @@ Replace `PATTERN` with a unique string from the entry to remove.
 
 | Need | Use |
 |------|-----|
-| Check in with user every 30s | MicroClaw internal scheduler |
-| Send daily reminder via WhatsApp | MicroClaw internal scheduler |
+| Check in with user every 30s | betaclaw internal scheduler |
+| Send daily reminder via WhatsApp | betaclaw internal scheduler |
 | Run a backup script every hour | System crontab |
-| Sub-minute anything | MicroClaw internal scheduler |
+| Sub-minute anything | betaclaw internal scheduler |

@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { MicroClawDB } from '../db.js';
+import type { betaclawDB } from '../db.js';
 import type { ProviderRegistry } from '../core/provider-registry.js';
 import type { ModelEntry } from '../core/model-catalog.js';
 import { selectModel } from '../core/model-selector.js';
@@ -276,7 +276,7 @@ function updateBehaviorStore(groupDir: string, behavior: ExtractedTurn['behavior
 
 // ── Memory facts ──────────────────────────────────────────────────────────────
 
-function writeFacts(db: MicroClawDB, groupDir: string, groupId: string, facts: string[]): void {
+function writeFacts(db: betaclawDB, groupDir: string, groupId: string, facts: string[]): void {
   if (!facts.length) return;
   const memPath = path.join(groupDir, MEMORY_FILENAME);
   fs.mkdirSync(groupDir, { recursive: true });
@@ -318,7 +318,7 @@ export interface ExtractorOptions {
   userMsg: string;
   assistantReply: string;
   groupId: string;
-  db: MicroClawDB;
+  db: betaclawDB;
   registry: ProviderRegistry;
   catalog: ModelEntry[];
 }

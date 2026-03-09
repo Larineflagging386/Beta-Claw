@@ -1,5 +1,5 @@
 {
-  "name": "microclaw",
+  "name": "betaclaw",
   "version": "3.0.0",
   "description": "Open, provider-agnostic AI agent runtime",
   "type": "module",
@@ -8,10 +8,10 @@
     "node": ">=22"
   },
   "bin": {
-    "microclaw": "./dist/cli/index.js"
+    "betaclaw": "./dist/cli/index.js"
   },
   "scripts": {
-    "build": "tsc && chmod +x dist/cli/index.js",
+    "build": "tsc && chmod +x dist/cli/index.js && npm link",
     "dev": "tsx src/cli/index.ts",
     "start": "tsx src/cli/index.ts start --foreground",
     "start:bg": "tsx src/cli/index.ts start",

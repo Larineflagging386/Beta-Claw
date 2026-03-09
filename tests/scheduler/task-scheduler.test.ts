@@ -1,24 +1,24 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TaskScheduler } from '../../src/scheduler/task-scheduler.js';
 import type { ScheduledTaskConfig, TaskFiredEvent, TaskAddedEvent, TaskRemovedEvent } from '../../src/scheduler/task-scheduler.js';
-import { MicroClawDB } from '../../src/db.js';
+import { betaclawDB } from '../../src/db.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
 function tmpDbPath(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'microclaw-scheduler-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'betaclaw-scheduler-test-'));
   return path.join(dir, 'test.db');
 }
 
 describe('TaskScheduler', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
   let scheduler: TaskScheduler;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
     scheduler = new TaskScheduler(db);
   });
 

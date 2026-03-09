@@ -80,7 +80,7 @@ function checkChannels(): CheckResult {
 }
 
 function runDoctor(): void {
-  console.log('\nMicroClaw Doctor\n');
+  console.log('\nbetaclaw Doctor\n');
 
   const checks: CheckResult[] = [
     checkNodeVersion(),

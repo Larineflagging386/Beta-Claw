@@ -1,4 +1,4 @@
-# version:1.0 | updated:2025-03-07 | author:microclaw
+# version:1.0 | updated:2025-03-07 | author:betaclaw
 # Prompt injection detection patterns — one per line
 # Used by the input guardrail scanner to flag potential injection attempts
 ignore previous instructions

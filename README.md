@@ -1,8 +1,8 @@
-# MicroClaw
+# betaclaw
 
 **Token-optimized AI assistant with multi-provider support**
 
-MicroClaw is an open, provider-agnostic AI agent runtime that routes requests across 12 providers, compresses prompts with its custom TOON format, and orchestrates multi-agent workflows — all from a single CLI or HTTP interface.
+betaclaw is an open, provider-agnostic AI agent runtime that routes requests across 12 providers, compresses prompts with its custom TOON format, and orchestrates multi-agent workflows — all from a single CLI or HTTP interface.
 
 ---
 
@@ -27,18 +27,18 @@ MicroClaw is an open, provider-agnostic AI agent runtime that routes requests ac
 
 ```bash
 # Clone and install
-git clone https://github.com/your-org/microclaw.git
-cd microclaw
+git clone https://github.com/your-org/betaclaw.git
+cd betaclaw
 npm install
 
 # Configure a provider (OpenRouter recommended for broadest model access)
-npx microclaw setup          # interactive wizard
+npx betaclaw setup          # interactive wizard
 
 # Or set an API key directly
 export OPENROUTER_API_KEY="sk-or-..."
 
 # Start chatting
-npx microclaw chat
+npx betaclaw chat
 ```
 
 ---
@@ -47,14 +47,14 @@ npx microclaw chat
 
 | Command | Description |
 |---|---|
-| `microclaw chat` | Open interactive chat session |
-| `microclaw chat --provider <id>` | Chat using a specific provider |
-| `microclaw chat --model <id>` | Override the auto-selected model |
-| `microclaw chat --group <id>` | Chat within a named group context |
-| `microclaw start` | Start the MicroClaw daemon |
-| `microclaw start --foreground` | Run daemon in the foreground |
-| `microclaw setup` | Run the interactive setup wizard |
-| `microclaw status` | Show system health, providers, and loaded skills |
+| `betaclaw chat` | Open interactive chat session |
+| `betaclaw chat --provider <id>` | Chat using a specific provider |
+| `betaclaw chat --model <id>` | Override the auto-selected model |
+| `betaclaw chat --group <id>` | Chat within a named group context |
+| `betaclaw start` | Start the betaclaw daemon |
+| `betaclaw start --foreground` | Run daemon in the foreground |
+| `betaclaw setup` | Run the interactive setup wizard |
+| `betaclaw status` | Show system health, providers, and loaded skills |
 
 In-chat commands:
 
@@ -158,7 +158,7 @@ User Input
 
 ## Configuration
 
-MicroClaw uses TOON (Token-Oriented Object Notation) for internal configuration and data exchange:
+betaclaw uses TOON (Token-Oriented Object Notation) for internal configuration and data exchange:
 
 ```
 @config{
@@ -169,7 +169,7 @@ MicroClaw uses TOON (Token-Oriented Object Notation) for internal configuration 
   summarizeThreshold:0.85
   vault:
   @vault{
-    dir:.micro
+    dir:.beta
     algorithm:aes-256-gcm
   }
   skills:
@@ -188,7 +188,7 @@ TOON reduces token usage by 28–44% compared to equivalent JSON while remaining
 
 ### Encrypted Vault
 
-Secrets are stored in `.micro/vault.enc` using AES-256-GCM encryption with a PBKDF2-derived key (100,000 iterations, SHA-256). Plaintext never touches disk.
+Secrets are stored in `.beta/vault.enc` using AES-256-GCM encryption with a PBKDF2-derived key (100,000 iterations, SHA-256). Plaintext never touches disk.
 
 ### Prompt Injection Defense
 
@@ -268,7 +268,7 @@ tests/                 # Mirror of src/ structure with unit + integration tests
 prompts/               # Prompt templates and guardrail patterns
 groups/                # Group configuration
 .claude/skills/        # Built-in skill definitions (SKILL.md)
-.micro/                # Vault storage (encrypted)
+.beta/                # Vault storage (encrypted)
 ```
 
 ---

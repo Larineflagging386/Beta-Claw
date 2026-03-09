@@ -15,7 +15,7 @@ export interface GmailAccountConfig {
   browserSession?:  string;
 }
 
-const STATE_FILE = path.join(PATHS.micro, 'gmail-accounts.json');
+const STATE_FILE = path.join(PATHS.beta, 'gmail-accounts.json');
 
 class GmailManager {
   private accounts = new Map<string, GmailAccountConfig>();
@@ -33,7 +33,7 @@ class GmailManager {
   }
 
   private save(): void {
-    fs.mkdirSync(PATHS.micro, { recursive: true });
+    fs.mkdirSync(PATHS.beta, { recursive: true });
     fs.writeFileSync(STATE_FILE, JSON.stringify([...this.accounts.values()], null, 2));
   }
 
@@ -53,7 +53,7 @@ class GmailManager {
 
   async startWatch(email: string): Promise<string> {
     const cfg = this.accounts.get(email);
-    if (!cfg) return `Unknown account: ${email}. Add it first with: microclaw gmail add ${email}`;
+    if (!cfg) return `Unknown account: ${email}. Add it first with: betaclaw gmail add ${email}`;
 
     if (!this.gogAvailable()) {
       return 'gog (gogcli) not installed. Install: bash <(curl -sSf https://gogcli.sh/)';
@@ -94,7 +94,7 @@ class GmailManager {
     const cfg = this.accounts.get(email);
     if (!cfg) return `Unknown account: ${email}`;
 
-    const statePath = path.join(PATHS.micro, 'browser-state', `${sessionId}.json`);
+    const statePath = path.join(PATHS.beta, 'browser-state', `${sessionId}.json`);
     const hasState  = fs.existsSync(statePath);
 
     if (!hasState) {
@@ -104,7 +104,7 @@ class GmailManager {
       return [
         `Opened browser for ${email} (headed mode — you need to log in manually).`,
         'Navigate to Gmail, complete Google sign-in, then run:',
-        `  microclaw gmail save-session ${email}`,
+        `  betaclaw gmail save-session ${email}`,
         'This will save the auth state so future sessions are headless.',
       ].join('\n');
     }

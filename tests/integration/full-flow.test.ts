@@ -5,7 +5,7 @@ import os from 'node:os';
 import { Writable, Readable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 
-import { MicroClawDB } from '../../src/db.js';
+import { betaclawDB } from '../../src/db.js';
 import type { ModelCatalogEntry } from '../../src/db.js';
 import { ProviderRegistry } from '../../src/core/provider-registry.js';
 import { ModelCatalog } from '../../src/core/model-catalog.js';
@@ -125,12 +125,12 @@ function makeFakeSearchClient(id: string, shouldFail: boolean): ISearchClient {
 // ─── Test Suite ───
 
 describe('Integration: Full Message Flow', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
   });
 
   afterEach(() => {
@@ -220,12 +220,12 @@ describe('Integration: Full Message Flow', () => {
 });
 
 describe('Integration: Memory Pipeline', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
   });
 
   afterEach(() => {
@@ -287,13 +287,13 @@ describe('Integration: Memory Pipeline', () => {
 });
 
 describe('Integration: Security Pipeline', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
   let guardrails: Guardrails;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
     guardrails = new Guardrails(db);
   });
 
@@ -515,21 +515,21 @@ describe('Integration: Channel Round-Trip', () => {
       received = msg;
     });
 
-    input.push('Hello MicroClaw\n');
+    input.push('Hello betaclaw\n');
     await sleep(50);
 
     expect(received).not.toBeNull();
-    expect(received!.content).toBe('Hello MicroClaw');
+    expect(received!.content).toBe('Hello betaclaw');
     expect(received!.groupId).toBe('cli-default');
     expect(received!.senderId).toBe('cli-user');
 
     const outbound: OutboundMessage = {
       groupId: 'cli-default',
-      content: 'Response from MicroClaw',
+      content: 'Response from betaclaw',
     };
     await channel.send(outbound);
 
-    expect(chunks.some((c) => c.includes('Response from MicroClaw'))).toBe(true);
+    expect(chunks.some((c) => c.includes('Response from betaclaw'))).toBe(true);
 
     expect(channel.supportsFeature('markdown')).toBe(true);
     expect(channel.supportsFeature('images')).toBe(false);
@@ -628,12 +628,12 @@ Always cite your sources when providing factual information.
 });
 
 describe('Integration: Tool Cache', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
   });
 
   afterEach(() => {
@@ -701,12 +701,12 @@ describe('Integration: Tool Cache', () => {
 });
 
 describe('Integration: Full Agent Pipeline', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
   });
 
   afterEach(() => {

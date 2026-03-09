@@ -3,7 +3,7 @@ import path from 'node:path';
 import cron from 'node-cron';
 import { randomUUID } from 'node:crypto';
 import pino from 'pino';
-import type { MicroClawDB, HeartbeatConfig } from '../db.js';
+import type { betaclawDB, HeartbeatConfig } from '../db.js';
 import type { ProviderRegistry } from '../core/provider-registry.js';
 import type { ModelEntry } from '../core/model-catalog.js';
 import { selectModel } from '../core/model-selector.js';
@@ -15,7 +15,7 @@ interface HeartbeatDeliverFn {
 }
 
 interface HeartbeatSchedulerConfig {
-  db: MicroClawDB;
+  db: betaclawDB;
   registry: ProviderRegistry;
   catalog: ModelEntry[];
   deliver: HeartbeatDeliverFn;
@@ -61,7 +61,7 @@ function isAckResponse(response: string, ackMaxChars: number): boolean {
 }
 
 class HeartbeatScheduler {
-  private readonly db: MicroClawDB;
+  private readonly db: betaclawDB;
   private readonly registry: ProviderRegistry;
   private readonly catalog: ModelEntry[];
   private readonly deliver: HeartbeatDeliverFn;

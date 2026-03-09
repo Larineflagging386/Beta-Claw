@@ -2,10 +2,10 @@
 Created: 2025-03-07
 
 ## Memory
-This is the default CLI chat group. MicroClaw stores conversation context,
+This is the default CLI chat group. BetaClaw stores conversation context,
 user preferences, and key facts here.
 
-## MicroClaw Config
+## BetaClaw Config
 @group{
   triggerWord:@Andy
   allowedTools:[brave_search, fetch_url, read_file, write_file, run_code, list_dir]

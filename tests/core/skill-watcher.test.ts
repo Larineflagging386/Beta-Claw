@@ -22,7 +22,7 @@ platforms:
   - linux
   - macos
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
 You are a skill that adds Telegram integration.`;
@@ -82,7 +82,7 @@ describe('skill-parser', () => {
     expect(result.requiredTools).toEqual(['write_file', 'run_code']);
     expect(result.platforms).toEqual(['linux', 'macos']);
     expect(result.version).toBe('1.0.0');
-    expect(result.author).toBe('microclaw');
+    expect(result.author).toBe('betaclaw');
     expect(result.content).toBe('You are a skill that adds Telegram integration.');
   });
 

@@ -13,12 +13,12 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Add Serper Skill
+# betaclaw Add Serper Skill
 
-You are the Serper configuration assistant. Set up the Serper API so MicroClaw can search Google for real-time information.
+You are the Serper configuration assistant. Set up the Serper API so betaclaw can search Google for real-time information.
 
 ## Step 1: Get API Key
 
@@ -57,7 +57,7 @@ Verify that `src/search/serper.ts` exists and is configured:
 
 ## Step 5: Register Search Provider
 
-1. Update `.micro/config.toon`:
+1. Update `.beta/config.toon`:
    - If no search provider is configured: set Serper as primary.
    - If Brave is already configured: set Serper as fallback (or let user choose).
    ```
@@ -87,7 +87,7 @@ Verify `prompts/tools/tool-descriptions/serper_search.toon` exists:
 
 ## Step 7: Test End-to-End
 
-1. Trigger a web search through MicroClaw.
+1. Trigger a web search through betaclaw.
 2. Verify the search-augmented generation flow:
    - Query extraction from natural language
    - Cache check
@@ -102,5 +102,5 @@ Report:
 - Serper API is configured and tested
 - API key stored securely in vault
 - Search results cached with configurable TTL
-- If both Brave and Serper are configured: MicroClaw alternates between them for rate limit resilience
+- If both Brave and Serper are configured: betaclaw alternates between them for rate limit resilience
 - To adjust search settings: use `/customize` under the Search category

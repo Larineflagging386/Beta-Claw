@@ -391,15 +391,15 @@ describe('TOON Serializer', () => {
       ]);
     });
 
-    it('handles microclaw config format', () => {
-      const input = `@microclaw{
+    it('handles betaclaw config format', () => {
+      const input = `@betaclaw{
   version:2.0.0
   profile:standard
   executionMode:isolated
   triggerWord:@rem
 }`;
       const result = decode(input);
-      expect(result.type).toBe('microclaw');
+      expect(result.type).toBe('betaclaw');
       expect(result.data['version']).toBe('2.0.0');
       expect(result.data['profile']).toBe('standard');
     });

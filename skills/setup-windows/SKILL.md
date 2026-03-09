@@ -1,7 +1,7 @@
 ---
 name: setup-windows
 command: /setup-windows
-description: Set up MicroClaw on Windows using WSL2 and Docker
+description: Set up betaclaw on Windows using WSL2 and Docker
 requiredTools:
   - run_code
   - write_file
@@ -9,12 +9,12 @@ requiredTools:
 platforms:
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Windows Setup Skill
+# betaclaw Windows Setup Skill
 
-You are the Windows setup assistant. Guide the user through installing and configuring MicroClaw on Windows 11 using WSL2 and optionally Docker Desktop.
+You are the Windows setup assistant. Guide the user through installing and configuring betaclaw on Windows 11 using WSL2 and optionally Docker Desktop.
 
 ## Prerequisites
 
@@ -88,23 +88,23 @@ If the user wants Isolated Mode:
 
 If the user prefers Full Control Mode, Docker is not required.
 
-## Phase 6: Install MicroClaw in WSL2
+## Phase 6: Install betaclaw in WSL2
 
-All MicroClaw operations happen inside WSL2:
+All betaclaw operations happen inside WSL2:
 
 ```bash
 cd ~
-git clone <repository-url> microclaw  # or copy project files
-cd microclaw
+git clone <repository-url> betaclaw  # or copy project files
+cd betaclaw
 npm install
 npm run build
 ```
 
-## Phase 7: Run MicroClaw Setup
+## Phase 7: Run betaclaw Setup
 
 Inside WSL2, run the standard setup:
 ```bash
-npx microclaw setup
+npx betaclaw setup
 ```
 
 This invokes the `/setup` skill which handles provider configuration, persona setup, etc.
@@ -113,33 +113,33 @@ This invokes the `/setup` skill which handles provider configuration, persona se
 
 Help the user set up a nice terminal experience:
 1. Install Windows Terminal from the Microsoft Store (if not already).
-2. Add a profile for MicroClaw:
+2. Add a profile for betaclaw:
    ```json
    {
-     "name": "MicroClaw",
-     "commandline": "wsl -d Ubuntu-24.04 -- bash -c 'cd ~/microclaw && npx microclaw chat'",
+     "name": "betaclaw",
+     "commandline": "wsl -d Ubuntu-24.04 -- bash -c 'cd ~/betaclaw && npx betaclaw chat'",
      "icon": "🤖",
-     "startingDirectory": "//wsl$/Ubuntu-24.04/home/<username>/microclaw"
+     "startingDirectory": "//wsl$/Ubuntu-24.04/home/<username>/betaclaw"
    }
    ```
 
 ## Phase 9: Auto-Start (Optional)
 
-If the user wants MicroClaw to start automatically:
+If the user wants betaclaw to start automatically:
 1. Create a Windows Task Scheduler entry that launches WSL on login.
 2. Inside WSL, use a systemd service (if WSL systemd is enabled) or a startup script in `~/.bashrc`.
 
 ## Phase 10: Verify
 
 1. Open WSL2 terminal.
-2. Run `microclaw doctor` to verify all components.
-3. Run `microclaw chat` to test interactive mode.
+2. Run `betaclaw doctor` to verify all components.
+3. Run `betaclaw chat` to test interactive mode.
 4. If Docker is installed, verify container execution works.
 
 Report:
-- MicroClaw is running inside WSL2 (Ubuntu)
+- betaclaw is running inside WSL2 (Ubuntu)
 - Node.js version and Docker status
 - Resource profile detected
-- How to start: open WSL and run `microclaw chat` or `microclaw start`
-- Files are accessible at `\\wsl$\Ubuntu-24.04\home\<username>\microclaw` from Windows Explorer
-- Note: MicroClaw runs in the Linux environment; Windows paths need translation via `/mnt/c/...`
+- How to start: open WSL and run `betaclaw chat` or `betaclaw start`
+- Files are accessible at `\\wsl$\Ubuntu-24.04\home\<username>\betaclaw` from Windows Explorer
+- Note: betaclaw runs in the Linux environment; Windows paths need translation via `/mnt/c/...`

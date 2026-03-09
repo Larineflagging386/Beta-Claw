@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { MicroClawDB } from '../db.js';
+import { betaclawDB } from '../db.js';
 import type { ResourceProfile } from '../db.js';
 import type { IChannel, InboundMessage } from '../channels/interface.js';
 import type { IProviderAdapter } from '../providers/interface.js';
@@ -30,10 +30,10 @@ import { initGmailManager, gmailManager } from '../gmail/gmail-manager.js';
 import { browserManager } from '../browser/browser-manager.js';
 import { scheduleClawHubSync, stopClawHubSync } from '../skills/clawhub-sync.js';
 
-/** Read executionMode from .micro/config.toon without a full parse — just regex. */
+/** Read executionMode from .beta/config.toon without a full parse — just regex. */
 function readExecutionMode(): 'isolated' | 'full_control' {
   try {
-    const configPath = path.join('.micro', 'config.toon');
+    const configPath = path.join('.beta', 'config.toon');
     if (!fs.existsSync(configPath)) return 'isolated';
     const content = fs.readFileSync(configPath, 'utf-8');
     const match = content.match(/executionMode\s*:\s*([\w_]+)/);
@@ -121,7 +121,7 @@ function formatToolDetail(name: string, args: Record<string, unknown>): string {
 }
 
 class Orchestrator extends EventEmitter {
-  private readonly db: MicroClawDB;
+  private readonly db: betaclawDB;
   private readonly config: OrchestratorConfig;
   private readonly logger: pino.Logger;
   private readonly channels: Map<string, IChannel> = new Map();
@@ -142,7 +142,7 @@ class Orchestrator extends EventEmitter {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.logger = pino({ level: this.config.logLevel });
-    this.db = new MicroClawDB(this.config.dbPath, this.config.profile);
+    this.db = new betaclawDB(this.config.dbPath, this.config.profile);
 
     this.messageQueue.setHandler(async (entry) => {
       const { msg, channel: ch } = entry;
@@ -349,7 +349,7 @@ class Orchestrator extends EventEmitter {
     return this.channels.get(id);
   }
 
-  getDB(): MicroClawDB {
+  getDB(): betaclawDB {
     return this.db;
   }
 
@@ -414,7 +414,7 @@ class Orchestrator extends EventEmitter {
     const recentToolUse = Boolean(lastAssistant && /\b(exec|write|read|web_search|web_fetch|browser|memory_write)\b/.test(lastAssistant.content));
 
     const sel = selectModel(this.catalog, msg.content, { history: historyForTier, recentToolUse });
-    if (!sel) return { response: 'No model available. Run `microclaw provider add`.', modelId: '' };
+    if (!sel) return { response: 'No model available. Run `betaclaw provider add`.', modelId: '' };
 
     const provider = this.registry.get(sel.model.provider_id);
     if (!provider) return { response: `Provider ${sel.model.provider_id} not connected.`, modelId: '' };

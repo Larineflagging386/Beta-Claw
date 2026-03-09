@@ -5,7 +5,7 @@ import path from 'node:path';
 import os from 'node:os';
 
 function tmpVaultDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'microclaw-vault-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'betaclaw-vault-test-'));
 }
 
 describe('Vault', () => {

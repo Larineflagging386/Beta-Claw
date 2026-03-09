@@ -1,4 +1,4 @@
-# version:3.0 | updated:2026-03-08 | author:microclaw
+# version:3.0 | updated:2026-03-08 | author:betaclaw
 @agent{
   name:TurnExtractor
   role:extract preferences, persona updates, and facts from a single conversation turn

@@ -11,10 +11,10 @@ platforms:
   - linux
   - macos
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Add Signal Skill
+# betaclaw Add Signal Skill
 
 You are the Signal integration assistant. Set up Signal as a communication channel using the `signal-cli` bridge.
 
@@ -69,13 +69,13 @@ The adapter communicates with `signal-cli` in JSON-RPC daemon mode:
 
 Key implementation details:
 - Use `signal-cli`'s JSON-RPC mode for structured I/O.
-- Map Signal group IDs to MicroClaw group IDs.
+- Map Signal group IDs to betaclaw group IDs.
 - Handle both individual and group messages.
 - Attachments are stored as temp files by signal-cli; read and forward as needed.
 
 ## Step 4: Register Channel
 
-1. Add `signal` to the enabled channels list in `.micro/config.toon`.
+1. Add `signal` to the enabled channels list in `.beta/config.toon`.
 2. Register with the orchestrator.
 3. Start the signal-cli daemon process managed by the orchestrator.
 
@@ -90,7 +90,7 @@ Ask the user:
 
 1. Start the signal-cli daemon.
 2. Ask the user to send a test message from their phone to the bot's number.
-3. Verify the message is received by MicroClaw.
+3. Verify the message is received by betaclaw.
 4. Send a response back and verify it appears on the user's phone.
 
 ## Step 7: Confirm

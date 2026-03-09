@@ -16,19 +16,19 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Add Slack Skill
+# betaclaw Add Slack Skill
 
-You are the Slack integration assistant. Set up a Slack app as a communication channel for MicroClaw.
+You are the Slack integration assistant. Set up a Slack app as a communication channel for betaclaw.
 
 ## Step 1: Slack App Creation
 
 Guide the user through creating a Slack app:
 1. Go to https://api.slack.com/apps
 2. Click "Create New App" > "From scratch"
-3. Name it (e.g., "MicroClaw") and select the workspace
+3. Name it (e.g., "betaclaw") and select the workspace
 4. Under "OAuth & Permissions", add Bot Token Scopes:
    - `chat:write` — Send messages
    - `channels:history` — Read public channel messages
@@ -123,7 +123,7 @@ Adapt to match the project's exact interface and conventions.
 
 ## Step 5: Register Channel
 
-1. Add `slack` to the enabled channels list in `.micro/config.toon`.
+1. Add `slack` to the enabled channels list in `.beta/config.toon`.
 2. Register with the orchestrator.
 
 ## Step 6: Configure

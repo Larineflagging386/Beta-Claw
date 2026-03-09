@@ -33,7 +33,7 @@ function imageExists(image: string): boolean {
  */
 export async function runEphemeral(opts: EphemeralRunOptions): Promise<EphemeralRunResult> {
   const id      = `mc-ephemeral-${randomBytes(6).toString('hex')}`;
-  const image   = opts.image     ?? 'microclaw-sandbox:latest';
+  const image   = opts.image     ?? 'betaclaw-sandbox:latest';
   const timeout = opts.timeoutMs ?? 60_000;
   const network = opts.networkMode ?? 'none';
   const workDir = path.join(PATHS.sandboxes, 'ephemeral', id);
@@ -41,7 +41,7 @@ export async function runEphemeral(opts: EphemeralRunOptions): Promise<Ephemeral
   if (!imageExists(image)) {
     return {
       stdout:     '',
-      stderr:     `Image "${image}" not found. Run: microclaw sandbox setup`,
+      stderr:     `Image "${image}" not found. Run: betaclaw sandbox setup`,
       exitCode:   127,
       durationMs: 0,
     };

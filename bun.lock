@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "microclaw",
+      "name": "betaclaw",
       "dependencies": {
         "@anthropic-ai/sdk": "latest",
         "@google/generative-ai": "latest",

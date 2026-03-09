@@ -3,7 +3,7 @@ import type { ModelEntry } from './model-catalog.js';
 import { TOOLS, type ToolDefinition } from './tools.js';
 import { ToolExecutor, type ApprovalCallback } from './tool-executor.js';
 import { trimHistory, type Message } from './token-budget.js';
-import type { MicroClawDB } from '../db.js';
+import type { betaclawDB } from '../db.js';
 import type { SandboxRunOptions } from '../execution/sandbox.js';
 import { hookRegistry } from '../hooks/hook-registry.js';
 import { skillRegistry } from '../skills/skill-registry.js';
@@ -16,7 +16,7 @@ export interface LoopConfig {
   provider: IProviderAdapter;
   model: ModelEntry;
   systemPrompt: string;
-  db: MicroClawDB;
+  db: betaclawDB;
   groupId: string;
   senderId?: string;
   sessionKey?: string;

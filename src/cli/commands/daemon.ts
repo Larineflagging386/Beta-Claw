@@ -5,8 +5,8 @@ import path from 'node:path';
 import { z } from 'zod';
 import dotenv from 'dotenv';
 
-const PID_FILE = path.join('.micro', 'microclaw.pid');
-const LOG_FILE = path.join('.micro', 'logs', 'app.log');
+const PID_FILE = path.join('.beta', 'betaclaw.pid');
+const LOG_FILE = path.join('.beta', 'logs', 'app.log');
 
 const PidSchema = z.number().int().positive();
 
@@ -67,7 +67,7 @@ const V = {
 async function startDaemon(options: { foreground?: boolean; verbose?: boolean }): Promise<void> {
   const status = getStatus();
   if (status.running) {
-    console.log(`MicroClaw is already running (PID ${status.pid}).`);
+    console.log(`BetaClaw is already running (PID ${status.pid}).`);
     return;
   }
 
@@ -76,13 +76,13 @@ async function startDaemon(options: { foreground?: boolean; verbose?: boolean })
   if (options.foreground || options.verbose) {
     dotenv.config();
     const modeLabel = options.verbose ? 'verbose mode' : 'foreground mode';
-    console.log(`${V.cyan}${V.bold}MicroClaw v3.0${V.reset} — Starting in ${modeLabel}...`);
+    console.log(`${V.cyan}${V.bold}BetaClaw v3.0${V.reset} — Starting in ${modeLabel}...`);
     if (options.verbose) {
       console.log(`${V.dim}  Streaming: ${V.cyan}[MSG]${V.reset} ${V.yellow}[TOOL]${V.reset} ${V.magenta}[MODEL]${V.reset} ${V.green}[SEND]${V.reset} ${V.red}[ERR]${V.reset}${V.dim} events${V.reset}`);
     }
     writePid(process.pid);
 
-    const { MicroClawDB } = await import('../../db.js');
+    const { betaclawDB } = await import('../../db.js');
     const { Orchestrator } = await import('../../core/orchestrator.js');
     const { ProviderRegistry } = await import('../../core/provider-registry.js');
     const { registerAvailableProviders } = await import('../../core/provider-init.js');
@@ -92,11 +92,11 @@ async function startDaemon(options: { foreground?: boolean; verbose?: boolean })
 
     const { DB_PATH } = await import('../../core/paths.js');
     // Pin the absolute DB path into the environment so every child process
-    // spawned by exec (e.g. "microclaw schedule once") resolves the same DB
+    // spawned by exec (e.g. "betaclaw schedule once") resolves the same DB
     // regardless of the cwd it is launched from.
-    process.env['MICROCLAW_DB'] = DB_PATH;
+    process.env['betaclaw_DB'] = DB_PATH;
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    const db = new MicroClawDB(DB_PATH);
+    const db = new betaclawDB(DB_PATH);
     const orchestrator = new Orchestrator({
       logLevel: options.verbose ? 'warn' : 'info',
       verbose: options.verbose ?? false,
@@ -112,7 +112,7 @@ async function startDaemon(options: { foreground?: boolean; verbose?: boolean })
     console.log(`  Providers: ${registered.length > 0 ? registered.join(', ') : 'none'}`);
 
     // Register channels based on environment variables / config
-    if (process.env['WHATSAPP_ENABLED'] === 'true' || fs.existsSync('.micro/whatsapp-auth')) {
+    if (process.env['WHATSAPP_ENABLED'] === 'true' || fs.existsSync('.beta/whatsapp-auth')) {
       const wa = new WhatsAppChannel();
       orchestrator.registerChannel(wa);
       console.log('  Channel: WhatsApp');
@@ -140,14 +140,14 @@ async function startDaemon(options: { foreground?: boolean; verbose?: boolean })
 
     await orchestrator.start();
 
-    console.log('\nMicroClaw daemon running. Press Ctrl+C to stop.\n');
+    console.log('\nBetaClaw daemon running. Press Ctrl+C to stop.\n');
 
     const shutdown = async (): Promise<void> => {
       console.log('\nShutting down...');
       await orchestrator.stop();
       db.close();
       removePid();
-      console.log('MicroClaw stopped.');
+      console.log('BetaClaw stopped.');
       process.exit(0);
     };
 
@@ -159,11 +159,11 @@ async function startDaemon(options: { foreground?: boolean; verbose?: boolean })
   const daemonScript = path.resolve(import.meta.dirname ?? '.', 'daemon-entry.js');
 
   if (!fs.existsSync(daemonScript)) {
-    console.log('MicroClaw v3.0 — Starting daemon...');
+    console.log('BetaClaw v3.0 — Starting daemon...');
     writePid(process.pid);
     console.log(`Daemon started (PID ${process.pid}).`);
-    console.log('Run "microclaw status" to check health.');
-    console.log('Run "microclaw stop" to stop.\n');
+    console.log('Run "betaclaw status" to check health.');
+    console.log('Run "betaclaw stop" to stop.\n');
     return;
   }
 
@@ -176,36 +176,36 @@ async function startDaemon(options: { foreground?: boolean; verbose?: boolean })
   if (child.pid) {
     writePid(child.pid);
     child.unref();
-    console.log(`MicroClaw daemon started (PID ${child.pid}).`);
+    console.log(`BetaClaw daemon started (PID ${child.pid}).`);
     console.log(`Logs: ${LOG_FILE}`);
-    console.log('Run "microclaw status" to check health.');
-    console.log('Run "microclaw stop" to stop.\n');
+    console.log('Run "betaclaw status" to check health.');
+    console.log('Run "betaclaw stop" to stop.\n');
   }
 }
 
 function stopDaemon(): void {
   const status = getStatus();
   if (!status.running || !status.pid) {
-    console.log('MicroClaw is not running.');
+    console.log('BetaClaw is not running.');
     return;
   }
 
   try {
     process.kill(status.pid, 'SIGTERM');
-    console.log(`Stopping MicroClaw (PID ${status.pid})...`);
+    console.log(`Stopping BetaClaw (PID ${status.pid})...`);
 
     let attempts = 0;
     const check = (): void => {
       if (!isRunning(status.pid!)) {
         removePid();
-        console.log('MicroClaw stopped.');
+        console.log('BetaClaw stopped.');
         return;
       }
       attempts++;
       if (attempts > 10) {
         process.kill(status.pid!, 'SIGKILL');
         removePid();
-        console.log('MicroClaw force-killed.');
+        console.log('BetaClaw force-killed.');
         return;
       }
       setTimeout(check, 500);
@@ -213,14 +213,14 @@ function stopDaemon(): void {
     setTimeout(check, 500);
   } catch {
     removePid();
-    console.log('MicroClaw was not running (stale PID removed).');
+    console.log('BetaClaw was not running (stale PID removed).');
   }
 }
 
 function restartDaemon(options: { foreground?: boolean; verbose?: boolean }): void {
   const status = getStatus();
   if (status.running && status.pid) {
-    console.log(`Stopping MicroClaw (PID ${status.pid})...`);
+    console.log(`Stopping BetaClaw (PID ${status.pid})...`);
     try {
       process.kill(status.pid, 'SIGTERM');
     } catch {
@@ -246,7 +246,7 @@ function restartDaemon(options: { foreground?: boolean; verbose?: boolean }): vo
 
 function showStatus(): void {
   const status = getStatus();
-  console.log('\nMicroClaw Status\n');
+  console.log('\nBetaClaw Status\n');
   console.log(`  Status:   ${status.running ? 'Running' : 'Stopped'}`);
   if (status.pid) {
     console.log(`  PID:      ${status.pid}`);
@@ -277,7 +277,7 @@ function showStatus(): void {
 }
 
 const startCommand = new Command('start')
-  .description('Start MicroClaw daemon')
+  .description('Start betaclaw daemon')
   .option('--foreground', 'Run in foreground (logs to stdout)')
   .option('--verbose', 'Run in foreground with colored streaming of all events (MSG/TOOL/MODEL/SEND/ERR)')
   .action(async (options: { foreground?: boolean; verbose?: boolean }) => {
@@ -285,13 +285,13 @@ const startCommand = new Command('start')
   });
 
 const stopCommand = new Command('stop')
-  .description('Graceful shutdown of MicroClaw daemon')
+  .description('Graceful shutdown of betaclaw daemon')
   .action(() => {
     stopDaemon();
   });
 
 const restartCommand = new Command('restart')
-  .description('Restart MicroClaw daemon')
+  .description('Restart betaclaw daemon')
   .option('--foreground', 'Run in foreground after restart')
   .option('--verbose', 'Run in verbose mode after restart')
   .action((options: { foreground?: boolean; verbose?: boolean }) => {
@@ -299,7 +299,7 @@ const restartCommand = new Command('restart')
   });
 
 const statusCommand = new Command('status')
-  .description('Show MicroClaw health: channels, models, skills, queue')
+  .description('Show betaclaw health: channels, models, skills, queue')
   .action(() => {
     showStatus();
   });

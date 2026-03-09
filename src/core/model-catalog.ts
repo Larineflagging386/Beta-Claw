@@ -1,6 +1,6 @@
 // src/core/model-catalog.ts
 
-import type { MicroClawDB, ModelCatalogEntry } from '../db.js';
+import type { betaclawDB, ModelCatalogEntry } from '../db.js';
 import type { ProviderRegistry } from './provider-registry.js';
 
 export interface ModelEntry {
@@ -107,7 +107,7 @@ export const DEFAULT_CATALOG: ModelEntry[] = MODEL_CATALOG;
  * Use `getAllModels()` to get the full merged list (static + dynamic).
  */
 export class ModelCatalog {
-  constructor(private db: MicroClawDB, private registry: ProviderRegistry) {}
+  constructor(private db: betaclawDB, private registry: ProviderRegistry) {}
 
   async refreshAll(): Promise<void> {
     for (const provider of this.registry.list()) {

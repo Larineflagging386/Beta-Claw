@@ -1,4 +1,4 @@
-# version:2.0 | updated:2026-03-08 | author:microclaw
+# version:2.0 | updated:2026-03-08 | author:betaclaw
 @agent{
   name:ToolSelector
   role:select and order tools for a given user intent
@@ -16,9 +16,9 @@
        - Information retrieval → web_search, web_fetch, memory_read
        - Code tasks → exec, write, read
        - File management → write, read, list
-       - Scheduling → exec (microclaw schedule ...)
+       - Scheduling → exec (betaclaw schedule ...)
        - Memory → memory_read, memory_write
-       - Messaging → exec (microclaw send ...)
+       - Messaging → exec (betaclaw send ...)
     3. COMPOSITE: task needs multiple tools in sequence.
        Order by data dependency: step N+1 uses output of step N.
 

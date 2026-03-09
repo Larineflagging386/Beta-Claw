@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
-import { MicroClawDB } from '../../db.js';
+import { betaclawDB } from '../../db.js';
 import { DB_PATH } from '../../core/paths.js';
 import { ProviderRegistry } from '../../core/provider-registry.js';
 import { ModelCatalog } from '../../core/model-catalog.js';
@@ -152,7 +152,7 @@ function benchmarkComplexity(): void {
 function benchmarkGuardrails(): void {
   header('Guardrails — Injection & PII Detection');
 
-  const db = new MicroClawDB(':memory:');
+  const db = new betaclawDB(':memory:');
   const guardrails = new Guardrails(db);
 
   const tests = [
@@ -811,7 +811,7 @@ async function benchmarkModels(registry: ProviderRegistry, catalog: ModelCatalog
 
   const models = catalog.getAllModels();
   if (models.length === 0) {
-    console.log(`  ${DIM}No models loaded. Run microclaw setup to configure providers.${RESET}`);
+    console.log(`  ${DIM}No models loaded. Run betaclaw setup to configure providers.${RESET}`);
     return;
   }
 
@@ -862,7 +862,7 @@ async function benchmarkPipeline(): Promise<void> {
   const execResult = await execAgent.execute({ id: 'b-exec', type: 'execution', brief: testInput, groupId, sessionId });
   steps.push({ step: 'Execution', durationMs: performance.now() - t2, tokensUsed: execResult.tokensUsed });
 
-  const db2 = new MicroClawDB(':memory:');
+  const db2 = new betaclawDB(':memory:');
   const guardrails = new Guardrails(db2);
   const t3 = performance.now();
   guardrails.processInput(testInput, groupId);
@@ -958,7 +958,7 @@ const SECTIONS: Record<string, () => void | Promise<void>> = {
 async function runFullBenchmark(opts: { section?: string }): Promise<void> {
   dotenv.config();
 
-  console.log(`\n${BOLD}${WHITE}  MicroClaw Benchmark Suite v3${RESET}`);
+  console.log(`\n${BOLD}${WHITE}  BetaClaw Benchmark Suite v3${RESET}`);
   console.log(`${DIM}  Sections: ${Object.keys(SECTIONS).join(', ')}${RESET}`);
 
   const section = opts.section?.toLowerCase();
@@ -979,7 +979,7 @@ async function runFullBenchmark(opts: { section?: string }): Promise<void> {
 
   if (!section || section === 'models') {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    const db = new MicroClawDB(DB_PATH);
+    const db = new betaclawDB(DB_PATH);
     const registry = new ProviderRegistry();
     registerProviders(registry);
 

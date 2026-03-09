@@ -1,7 +1,7 @@
 ---
 name: setup-vps
 command: /setup-vps
-description: Auto-harden a Linux VPS for secure MicroClaw deployment
+description: Auto-harden a Linux VPS for secure betaclaw deployment
 requiredTools:
   - run_code
   - write_file
@@ -9,12 +9,12 @@ requiredTools:
 platforms:
   - linux
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw VPS Setup & Hardening Skill
+# betaclaw VPS Setup & Hardening Skill
 
-You are the VPS deployment and security hardening assistant. When invoked on a Linux VPS, systematically secure the server and configure MicroClaw for production deployment.
+You are the VPS deployment and security hardening assistant. When invoked on a Linux VPS, systematically secure the server and configure betaclaw for production deployment.
 
 ## Prerequisites
 
@@ -42,10 +42,10 @@ Install essential tools: `curl`, `wget`, `git`, `unzip`, `jq`.
 
 ## Phase 3: Create Dedicated User
 
-1. Create the `microclaw` user: `useradd -m -s /bin/bash microclaw`
-2. Set up SSH key authentication for the `microclaw` user.
-3. MicroClaw will run as this user — never as root.
-4. No sudo access for the `microclaw` user (principle of least privilege).
+1. Create the `betaclaw` user: `useradd -m -s /bin/bash betaclaw`
+2. Set up SSH key authentication for the `betaclaw` user.
+3. betaclaw will run as this user — never as root.
+4. No sudo access for the `betaclaw` user (principle of least privilege).
 
 ## Phase 4: Firewall (UFW)
 
@@ -69,7 +69,7 @@ Edit `/etc/ssh/sshd_config`:
 3. `PubkeyAuthentication yes`
 4. `MaxAuthTries 3`
 5. `X11Forwarding no`
-6. `AllowUsers microclaw` (restrict to the MicroClaw user plus any admin user)
+6. `AllowUsers betaclaw` (restrict to the betaclaw user plus any admin user)
 7. Optionally change the SSH port (ask user, default: keep 22).
 
 Restart sshd: `systemctl restart sshd`
@@ -91,7 +91,7 @@ maxretry = 5
 bantime = 3600
 findtime = 600
 
-[microclaw-webhook]
+[betaclaw-webhook]
 enabled = true
 port = 443
 maxretry = 10
@@ -122,7 +122,7 @@ Configure to auto-install security updates only (not feature updates).
 ## Phase 9: Docker Setup (if using Isolated Mode)
 
 1. Install Docker: `curl -fsSL https://get.docker.com | sh`
-2. Add `microclaw` user to docker group: `usermod -aG docker microclaw`
+2. Add `betaclaw` user to docker group: `usermod -aG docker betaclaw`
 3. Configure Docker daemon (`/etc/docker/daemon.json`):
    ```json
    {
@@ -143,31 +143,31 @@ apt-get install -y nodejs
 
 Verify: `node --version` (must be >= 20.0.0).
 
-## Phase 11: MicroClaw Installation
+## Phase 11: betaclaw Installation
 
-1. Clone or copy MicroClaw to `/home/microclaw/microclaw/`.
-2. `cd /home/microclaw/microclaw && npm install --production`
+1. Clone or copy betaclaw to `/home/betaclaw/betaclaw/`.
+2. `cd /home/betaclaw/betaclaw && npm install --production`
 3. Build: `npm run build`
-4. Set ownership: `chown -R microclaw:microclaw /home/microclaw/`
+4. Set ownership: `chown -R betaclaw:betaclaw /home/betaclaw/`
 
 ## Phase 12: Systemd Service
 
-Create `/etc/systemd/system/microclaw.service`:
+Create `/etc/systemd/system/betaclaw.service`:
 ```ini
 [Unit]
-Description=MicroClaw AI Agent Runtime
+Description=betaclaw AI Agent Runtime
 After=network.target
 
 [Service]
 Type=simple
-User=microclaw
-Group=microclaw
-WorkingDirectory=/home/microclaw/microclaw
+User=betaclaw
+Group=betaclaw
+WorkingDirectory=/home/betaclaw/betaclaw
 ExecStart=/usr/bin/node dist/cli/index.js start --foreground
 Restart=on-failure
 RestartSec=5
-StandardOutput=append:/home/microclaw/microclaw/.micro/logs/app.log
-StandardError=append:/home/microclaw/microclaw/.micro/logs/app.log
+StandardOutput=append:/home/betaclaw/betaclaw/.beta/logs/app.log
+StandardError=append:/home/betaclaw/betaclaw/.beta/logs/app.log
 LimitNOFILE=65535
 
 [Install]
@@ -176,33 +176,33 @@ WantedBy=multi-user.target
 
 ```bash
 systemctl daemon-reload
-systemctl enable --now microclaw
+systemctl enable --now betaclaw
 ```
 
 ## Phase 13: Log Hardening
 
-1. Configure logrotate for MicroClaw logs.
+1. Configure logrotate for betaclaw logs.
 2. Ensure the pino log sanitizer strips sensitive values before writing.
 3. Set log retention to 30 days.
 
 ## Phase 14: Network Egress Control (Optional)
 
 If the user wants strict egress:
-1. Create iptables rules for the `microclaw` user limiting outbound connections to allowlisted hosts only (AI provider APIs, search APIs).
-2. Block all other outbound from the MicroClaw user.
+1. Create iptables rules for the `betaclaw` user limiting outbound connections to allowlisted hosts only (AI provider APIs, search APIs).
+2. Block all other outbound from the betaclaw user.
 
 ## Phase 15: Verification
 
 Run a full diagnostic:
 1. `ufw status verbose` — verify firewall rules
 2. `fail2ban-client status` — verify jails
-3. `systemctl status microclaw` — verify service is running
+3. `systemctl status betaclaw` — verify service is running
 4. `docker info` — verify Docker (if applicable)
 5. Test SSH login with key auth
-6. Run `microclaw doctor` to verify internal health
+6. Run `betaclaw doctor` to verify internal health
 
 Report all results. Provide the user with:
 - Server IP and SSH connection command
-- How to view logs: `journalctl -u microclaw -f`
-- How to restart: `systemctl restart microclaw`
+- How to view logs: `journalctl -u betaclaw -f`
+- How to restart: `systemctl restart betaclaw`
 - Reminder to back up the vault encryption key

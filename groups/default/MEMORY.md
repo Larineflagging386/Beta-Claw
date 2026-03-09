@@ -5,4 +5,4 @@ Created: 2026-03-08
 Default CLI chat group.
 
 ## User Preferences
-(Updated automatically as MicroClaw learns your preferences)
+(Updated automatically as betaclaw learns your preferences)

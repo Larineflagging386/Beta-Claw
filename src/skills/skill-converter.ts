@@ -29,8 +29,8 @@ const OC_TOOL_MAP: Record<string, string> = {
   'browser_type':       'exec (via Playwright — see browser skill)',
   'browser_screenshot': 'exec (via Playwright — see browser skill)',
   'memory_search':      'exec: grep -i "QUERY" groups/GROUP_ID/MEMORY.md',
-  'llm_task':           'exec (spawn sub-agent via microclaw chat --one-shot)',
-  'agent_send':         'exec: microclaw chat --group TARGET --one-shot "MESSAGE"',
+  'llm_task':           'exec (spawn sub-agent via betaclaw chat --one-shot)',
+  'agent_send':         'exec: betaclaw chat --group TARGET --one-shot "MESSAGE"',
 };
 
 const OC_ONLY_FIELDS = [
@@ -49,7 +49,7 @@ export async function convertSkill(raw: string, filePath: string): Promise<Conve
   meta.source = 'openclaw';
   const body = extractBody(raw);
   const convertedBody = rewriteBody(body);
-  const newFrontmatter = buildMicroClawFrontmatter(meta);
+  const newFrontmatter = buildbetaclawFrontmatter(meta);
   const banner = buildConversionBanner(filePath);
   const content = `${newFrontmatter}\n\n${banner}\n\n${convertedBody}`;
 
@@ -76,26 +76,26 @@ function rewriteBody(body: string): string {
 
   out = out.replace(/~\/\.openclaw\/workspace/g, 'groups/{groupId}');
   out = out.replace(/~\/\.openclaw\/skills/g, 'skills/');
-  out = out.replace(/openclaw\s+hooks/g, 'microclaw hooks');
-  out = out.replace(/openclaw\s+skills/g, 'microclaw skills');
-  out = out.replace(/openclaw\s+sandbox/g, 'microclaw sandbox');
-  out = out.replace(/openclaw\s+webhooks/g, 'microclaw webhooks');
-  out = out.replace(/OPENCLAW_/g, 'MICROCLAW_');
-  out = out.replace(/~\/\.openclaw/g, '.micro');
+  out = out.replace(/openclaw\s+hooks/g, 'betaclaw hooks');
+  out = out.replace(/openclaw\s+skills/g, 'betaclaw skills');
+  out = out.replace(/openclaw\s+sandbox/g, 'betaclaw sandbox');
+  out = out.replace(/openclaw\s+webhooks/g, 'betaclaw webhooks');
+  out = out.replace(/OPENCLAW_/g, 'betaclaw_');
+  out = out.replace(/~\/\.openclaw/g, '.beta');
 
   return out;
 }
 
 function buildConversionBanner(filePath: string): string {
   return [
-    '> **Auto-converted from OpenClaw format** by MicroClaw skill-watcher.',
+    '> **Auto-converted from OpenClaw format** by betaclaw skill-watcher.',
     `> Original: \`${filePath}\``,
-    '> Tool names, paths, and env vars have been rewritten for MicroClaw.',
+    '> Tool names, paths, and env vars have been rewritten for betaclaw.',
     '> Review before use. If anything looks wrong, edit the sidecar file directly.',
   ].join('\n');
 }
 
-function buildMicroClawFrontmatter(meta: SkillMeta): string {
+function buildbetaclawFrontmatter(meta: SkillMeta): string {
   return [
     '---',
     `name: ${meta.name}`,

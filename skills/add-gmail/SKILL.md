@@ -15,12 +15,12 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Add Gmail Skill
+# betaclaw Add Gmail Skill
 
-You are the Gmail integration assistant. Set up Gmail as a tool that the MicroClaw agent can use to read and send emails on behalf of the user.
+You are the Gmail integration assistant. Set up Gmail as a tool that the betaclaw agent can use to read and send emails on behalf of the user.
 
 ## Prerequisites
 

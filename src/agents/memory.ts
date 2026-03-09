@@ -3,7 +3,7 @@ import { encode } from '../core/toon-serializer.js';
 import { EpisodicMemory } from '../memory/episodic.js';
 import { SemanticMemory } from '../memory/semantic.js';
 import { Retriever } from '../memory/retriever.js';
-import { MicroClawDB } from '../db.js';
+import { betaclawDB } from '../db.js';
 import { DB_PATH } from '../core/paths.js';
 import type { AgentTask, AgentResult, IAgent } from './types.js';
 import { AgentTaskSchema } from './types.js';
@@ -37,9 +37,9 @@ function extractContent(brief: string): string {
 export class MemoryAgent implements IAgent {
   readonly type = 'memory' as const;
 
-  private static _sharedDB: MicroClawDB | null = null;
+  private static _sharedDB: betaclawDB | null = null;
 
-  static setDB(db: MicroClawDB): void {
+  static setDB(db: betaclawDB): void {
     MemoryAgent._sharedDB = db;
   }
 
@@ -56,7 +56,7 @@ export class MemoryAgent implements IAgent {
       const { dirname } = await import('node:path');
       mkdirSync(dirname(DB_PATH), { recursive: true });
     }
-    const db = MemoryAgent._sharedDB ?? new MicroClawDB(DB_PATH);
+    const db = MemoryAgent._sharedDB ?? new betaclawDB(DB_PATH);
     const episodic = new EpisodicMemory();
     const semantic = new SemanticMemory(db);
     const retriever = new Retriever(db);

@@ -7,7 +7,7 @@ import { PATHS } from '../core/paths.js';
 /**
  * Called by the existing SkillWatcher (src/core/skill-watcher.ts) whenever
  * a SKILL.md file is added or changed. Runs the OpenClaw compatibility check.
- * If the skill is in OpenClaw/ClawBot format, writes a .microclaw.md sidecar
+ * If the skill is in OpenClaw/ClawBot format, writes a .betaclaw.md sidecar
  * and registers the converted skill. Otherwise registers it as native.
  */
 export async function onSkillFileCompat(filePath: string): Promise<void> {
@@ -16,7 +16,7 @@ export async function onSkillFileCompat(filePath: string): Promise<void> {
     const result = await convertSkill(raw, filePath);
 
     if (result.converted) {
-      const sidecar = filePath.replace(/SKILL\.md$/, 'SKILL.microclaw.md');
+      const sidecar = filePath.replace(/SKILL\.md$/, 'SKILL.betaclaw.md');
       fs.writeFileSync(sidecar, result.content, 'utf-8');
       console.log(`[skill-compat] Converted OpenClaw skill → ${sidecar}`);
       skillRegistry.register(result.meta, sidecar, 'converted');
@@ -35,7 +35,7 @@ export function onSkillFileRemoved(filePath: string): void {
 
 /**
  * Manually convert a skill file at the given path.
- * Used by `microclaw skills convert <path>`.
+ * Used by `betaclaw skills convert <path>`.
  */
 export async function convertSkillFile(filePath: string): Promise<string> {
   const abs = path.resolve(filePath);
@@ -44,9 +44,9 @@ export async function convertSkillFile(filePath: string): Promise<string> {
   const raw = fs.readFileSync(abs, 'utf-8');
   const result = await convertSkill(raw, abs);
 
-  if (!result.converted) return `Skill at ${abs} is already in MicroClaw-native format.`;
+  if (!result.converted) return `Skill at ${abs} is already in betaclaw-native format.`;
 
-  const sidecar = abs.replace(/SKILL\.md$/, 'SKILL.microclaw.md');
+  const sidecar = abs.replace(/SKILL\.md$/, 'SKILL.betaclaw.md');
   fs.writeFileSync(sidecar, result.content, 'utf-8');
   return `Converted: ${sidecar}`;
 }

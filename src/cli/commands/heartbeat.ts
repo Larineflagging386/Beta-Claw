@@ -1,16 +1,16 @@
 import { Command } from 'commander';
 import fs from 'node:fs';
 import path from 'node:path';
-import { MicroClawDB } from '../../db.js';
+import { betaclawDB } from '../../db.js';
 import { DB_PATH, GROUPS_DIR, HEARTBEAT_FILENAME } from '../../core/paths.js';
 
-function getDB(): MicroClawDB | null {
+function getDB(): betaclawDB | null {
   const dir = path.dirname(DB_PATH);
   if (!fs.existsSync(dir)) {
-    console.log('Database not found. Run `microclaw start` first.');
+    console.log('Database not found. Run `betaclaw start` first.');
     return null;
   }
-  return new MicroClawDB(DB_PATH);
+  return new betaclawDB(DB_PATH);
 }
 
 const heartbeatCommand = new Command('heartbeat')

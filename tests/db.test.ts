@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { MicroClawDB } from '../src/db.js';
+import { betaclawDB } from '../src/db.js';
 import type {
   Message,
   Session,
@@ -16,17 +16,17 @@ import path from 'node:path';
 import os from 'node:os';
 
 function tmpDbPath(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'microclaw-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'betaclaw-test-'));
   return path.join(dir, 'test.db');
 }
 
-describe('MicroClawDB', () => {
-  let db: MicroClawDB;
+describe('betaclawDB', () => {
+  let db: betaclawDB;
   let dbPath: string;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
   });
 
   afterEach(() => {
@@ -88,7 +88,7 @@ describe('MicroClawDB', () => {
 
     it('respects resource profile cache sizes', () => {
       db.close();
-      const microDb = new MicroClawDB(dbPath, 'micro');
+      const microDb = new betaclawDB(dbPath, 'micro');
       const cacheSize = microDb.db.pragma('cache_size', { simple: true });
       expect(cacheSize).toBe(-2000);
       microDb.close();
@@ -435,7 +435,7 @@ describe('MicroClawDB', () => {
       id: 'snap_001',
       description: 'Before config change',
       paths: '["config.json","settings.json"]',
-      storage_dir: '.micro/snapshots/snap_001',
+      storage_dir: '.beta/snapshots/snap_001',
       expires_at: now + 604800,
     };
 

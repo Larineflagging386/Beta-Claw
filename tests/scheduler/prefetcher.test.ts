@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Prefetcher } from '../../src/scheduler/prefetcher.js';
 import type { PrefetchRule } from '../../src/scheduler/prefetcher.js';
 import { TaskScheduler } from '../../src/scheduler/task-scheduler.js';
-import { MicroClawDB } from '../../src/db.js';
+import { betaclawDB } from '../../src/db.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
 function tmpDbPath(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'microclaw-prefetcher-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'betaclaw-prefetcher-test-'));
   return path.join(dir, 'test.db');
 }
 
@@ -54,13 +54,13 @@ const CLAUDE_MD_WITH_INVALID_LINES = `# Agent Config
 `;
 
 describe('Prefetcher', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
   let scheduler: TaskScheduler;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
     scheduler = new TaskScheduler(db);
   });
 

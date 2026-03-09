@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createHash, randomUUID } from 'node:crypto';
-import type { MicroClawDB } from '../db.js';
+import type { betaclawDB } from '../db.js';
 import type { TaskScheduler, TaskFiredEvent } from './task-scheduler.js';
 
 const PrefetchRuleSchema = z.object({
@@ -39,13 +39,13 @@ type SearchFn = (query: string) => Promise<string>;
 const PREFETCH_CONFIG_RE = /query:"([^"]+)"\s*\|\s*cron:"([^"]+)"\s*\|\s*ttl:(\d+)/;
 
 class Prefetcher {
-  private readonly db: MicroClawDB;
+  private readonly db: betaclawDB;
   private readonly scheduler: TaskScheduler;
   private readonly searchFn: SearchFn;
   private readonly boundHandler: (event: TaskFiredEvent) => void;
   private listening = false;
 
-  constructor(db: MicroClawDB, scheduler: TaskScheduler, searchFn?: SearchFn) {
+  constructor(db: betaclawDB, scheduler: TaskScheduler, searchFn?: SearchFn) {
     this.db = db;
     this.scheduler = scheduler;
     this.searchFn = searchFn ?? (async () => '');

@@ -4,12 +4,12 @@ import { z } from 'zod';
 import path from 'node:path';
 import { PATHS } from './core/paths.js';
 
-let _dbInstance: MicroClawDB | null = null;
+let _dbInstance: betaclawDB | null = null;
 
-export function getDB(profile: ResourceProfile = 'standard'): MicroClawDB {
+export function getDB(profile: ResourceProfile = 'standard'): betaclawDB {
   if (_dbInstance) return _dbInstance;
-  fs.mkdirSync(PATHS.micro, { recursive: true });
-  _dbInstance = new MicroClawDB(PATHS.db, profile);
+  fs.mkdirSync(PATHS.beta, { recursive: true });
+  _dbInstance = new betaclawDB(PATHS.db, profile);
   return _dbInstance;
 }
 
@@ -327,7 +327,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
 );
 `;
 
-class MicroClawDB {
+class betaclawDB {
   readonly db: Database.Database;
 
   constructor(dbPath: string = PATHS.db, profile: ResourceProfile = 'standard') {
@@ -763,7 +763,7 @@ class MicroClawDB {
   }
 }
 
-export { MicroClawDB };
+export { betaclawDB };
 export type {
   Message,
   MessageInput,

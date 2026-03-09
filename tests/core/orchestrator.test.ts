@@ -143,7 +143,7 @@ describe('Orchestrator', () => {
       id: 'msg_001',
       groupId: 'grp_test',
       senderId: 'user_001',
-      content: 'Hello MicroClaw',
+      content: 'Hello betaclaw',
       timestamp: Math.floor(Date.now() / 1000),
     });
 

@@ -1,4 +1,4 @@
-# version:2.0 | updated:2026-03-08 | author:microclaw
+# version:2.0 | updated:2026-03-08 | author:betaclaw
 @tool{
   name:read
   category:filesystem
@@ -8,6 +8,6 @@
     offset:number — first line to read, 1-based (optional)
     limit:number — max lines to return (optional)
   }
-  blocked:secrets paths (.env, .micro/, creds.json, whatsapp-auth/)
+  blocked:secrets paths (.env, .beta/, creds.json, whatsapp-auth/)
   hint:Use offset+limit to read large files in chunks without loading everything.
 }

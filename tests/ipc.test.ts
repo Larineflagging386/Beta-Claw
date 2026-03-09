@@ -2,23 +2,23 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { MicroClawDB } from '../src/db.js';
+import { betaclawDB } from '../src/db.js';
 import { IpcWatcher } from '../src/ipc.js';
 import type { IpcMessage } from '../src/db.js';
 
 function tmpDbPath(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'microclaw-ipc-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'betaclaw-ipc-test-'));
   return path.join(dir, 'test.db');
 }
 
 describe('IpcWatcher', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
   let watcher: IpcWatcher;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
     watcher = new IpcWatcher(db);
   });
 

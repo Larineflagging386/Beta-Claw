@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ModelCatalog } from '../../src/core/model-catalog.js';
 import { ProviderRegistry } from '../../src/core/provider-registry.js';
-import { MicroClawDB } from '../../src/db.js';
+import { betaclawDB } from '../../src/db.js';
 import type {
   IProviderAdapter,
   CompletionRequest,
@@ -64,14 +64,14 @@ function createMockProvider(
 }
 
 describe('ModelCatalog', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let registry: ProviderRegistry;
   let catalog: ModelCatalog;
   let dbPath: string;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
     registry = new ProviderRegistry();
     catalog = new ModelCatalog(db, registry);
   });

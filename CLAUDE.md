@@ -1,7 +1,7 @@
-# MicroClaw — Global Memory
+# BetaClaw — Global Memory
 
 ## Project
-MicroClaw is a token-optimized, provider-agnostic AI agent runtime.
+BetaClaw is a token-optimized, provider-agnostic AI agent runtime.
 Version 3.0. Built with TypeScript strict mode (Node 22+), SQLite (WAL), and TOON serialization.
 
 ## Architecture
@@ -21,7 +21,7 @@ Version 3.0. Built with TypeScript strict mode (Node 22+), SQLite (WAL), and TOO
 - All workflows are SKILL.md files — no TypeScript for integrations
 - Docker sandboxing (mode: off | non-main | all) with elevated escape hatch
 - Hook system: 4 bundled hooks (session-memory, command-logger, boot-md, transcript-hygiene)
-- DB lives in .micro/microclaw.db (not project root)
+- DB lives in .beta/betaclaw.db (not project root)
 
 ## Groups
 - `default` — CLI chat, general purpose
@@ -36,7 +36,7 @@ Version 3.0. Built with TypeScript strict mode (Node 22+), SQLite (WAL), and TOO
 - Heartbeat: node-cron, pre-flight checks, HEARTBEAT_OK suppression
 - Score bands: 0-20 nano, 21-60 standard, 61-85 pro, 86-100 max
 - CLI supports streaming output via provider.stream()
-- Post-turn extraction: nano call after each reply → writes to microclaw.md (User Preferences), persona-supplement.md, behavior.md, MEMORY.md + FTS
+- Post-turn extraction: nano call after each reply → writes to betaclaw.md (User Preferences), persona-supplement.md, behavior.md, MEMORY.md + FTS
 - Compaction: section auto-compacted when >400 words
 - suggestWebSearch(): injects tool hint on topic-shift or live-data keywords
 - Tools are 8 primitives; workflows (telegram, cron, browser, etc.) are SKILL.md
@@ -45,4 +45,4 @@ Version 3.0. Built with TypeScript strict mode (Node 22+), SQLite (WAL), and TOO
 - Sandbox defaults to non-main mode (CLI on host, channels in Docker)
 
 ## User Preferences
-(Updated automatically as MicroClaw learns your preferences)
+(Updated automatically as BetaClaw learns your preferences)

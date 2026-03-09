@@ -6,15 +6,15 @@ import { TaskScheduler } from '../../scheduler/task-scheduler.js';
 dotenv.config();
 
 async function getDB() {
-  const { MicroClawDB } = await import('../../db.js');
+  const { betaclawDB } = await import('../../db.js');
   const { DB_PATH } = await import('../../core/paths.js');
   // Prefer the env var set by the daemon so the path is always absolute
   // regardless of the cwd this subprocess was launched from.
-  return new MicroClawDB(process.env['MICROCLAW_DB'] ?? DB_PATH);
+  return new betaclawDB(process.env['betaclaw_DB'] ?? DB_PATH);
 }
 
 const scheduleCommand = new Command('schedule')
-  .description('Manage MicroClaw internal scheduled tasks (supports sub-minute intervals)');
+  .description('Manage betaclaw internal scheduled tasks (supports sub-minute intervals)');
 
 scheduleCommand
   .command('add')
@@ -134,7 +134,7 @@ scheduleCommand
       );
       if (!task) {
         console.error(`  Task not found: ${idOrName}`);
-        console.log(`  Run "microclaw schedule list" to see all tasks.`);
+        console.log(`  Run "betaclaw schedule list" to see all tasks.`);
         process.exit(1);
       }
       db.deleteScheduledTask(task.id, task.group_id);

@@ -14,18 +14,18 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Add Discord Skill
+# betaclaw Add Discord Skill
 
-You are the Discord integration assistant. Set up a Discord bot as a communication channel for MicroClaw.
+You are the Discord integration assistant. Set up a Discord bot as a communication channel for betaclaw.
 
 ## Step 1: Bot Creation
 
 If the user doesn't have a Discord bot yet:
 1. Go to https://discord.com/developers/applications
-2. Click "New Application", name it (e.g., "MicroClaw")
+2. Click "New Application", name it (e.g., "betaclaw")
 3. Go to the "Bot" tab, click "Add Bot"
 4. Under "Privileged Gateway Intents", enable:
    - **Message Content Intent** (required to read message text)
@@ -114,7 +114,7 @@ Adapt to match the project's exact interface and coding conventions.
 
 ## Step 5: Register Channel
 
-1. Add `discord` to the enabled channels list in `.micro/config.toon`.
+1. Add `discord` to the enabled channels list in `.beta/config.toon`.
 2. Register the channel with the orchestrator.
 
 ## Step 6: Configure Bot Behavior

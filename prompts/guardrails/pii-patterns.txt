@@ -1,4 +1,4 @@
-# version:1.0 | updated:2025-03-07 | author:microclaw
+# version:1.0 | updated:2025-03-07 | author:betaclaw
 # PII regex patterns for input/output scanning
 # Format: pattern_name | regex_pattern | description | action
 credit_card_visa | \b4[0-9]{3}[\s\-]?[0-9]{4}[\s\-]?[0-9]{4}[\s\-]?[0-9]{4}\b | Visa card number | redact

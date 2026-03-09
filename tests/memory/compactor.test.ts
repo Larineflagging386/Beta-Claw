@@ -1,22 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Compactor } from '../../src/memory/compactor.js';
 import type { CompactionResult } from '../../src/memory/compactor.js';
-import { MicroClawDB } from '../../src/db.js';
+import { betaclawDB } from '../../src/db.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-function makeTempDb(): { db: MicroClawDB; dbPath: string } {
+function makeTempDb(): { db: betaclawDB; dbPath: string } {
   const dbPath = path.join(
     os.tmpdir(),
-    `microclaw-compactor-test-${Date.now()}-${Math.random().toString(36).slice(2)}.db`,
+    `betaclaw-compactor-test-${Date.now()}-${Math.random().toString(36).slice(2)}.db`,
   );
-  const db = new MicroClawDB(dbPath, 'micro');
+  const db = new betaclawDB(dbPath, 'micro');
   return { db, dbPath };
 }
 
 describe('Compactor', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
   let compactor: Compactor;
 

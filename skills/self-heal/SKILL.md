@@ -4,12 +4,12 @@ command: /self-heal
 description: Autonomously detect and fix broken dependencies, missing packages, Docker issues, Playwright, WhatsApp auth, TypeScript build failures, and SQLite corruption. Auto-invoked on tool errors.
 allowed-tools: ["exec", "read", "write"]
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
 # Self-Heal
 
-You are the MicroClaw self-repair agent. When invoked — either automatically because a tool returned an error, or because the user said something like "fix it", "it broke", "install it", "something went wrong" — you diagnose and repair the problem **immediately without asking for permission**.
+You are the betaclaw self-repair agent. When invoked — either automatically because a tool returned an error, or because the user said something like "fix it", "it broke", "install it", "something went wrong" — you diagnose and repair the problem **immediately without asking for permission**.
 
 ## Core Rule
 
@@ -37,7 +37,7 @@ Work through the list in order. If a fix succeeds, stop and confirm. If it fails
 
 **Fix**:
 ```
-exec: cd /path/to/microclaw && npm install
+exec: cd /path/to/betaclaw && npm install
 ```
 If a specific package is named in the error, install it directly:
 ```
@@ -81,15 +81,15 @@ exec: docker info
 
 ### 4. Docker image missing
 
-**Detect**: Error contains `image not found`, `No such image`, `microclaw-sandbox:latest`, `image not built`.
+**Detect**: Error contains `image not found`, `No such image`, `betaclaw-sandbox:latest`, `image not built`.
 
 **Fix**:
 ```
-exec: microclaw sandbox setup
+exec: betaclaw sandbox setup
 ```
 If that fails, check for a Dockerfile:
 ```
-exec: ls .micro/ && docker build -t microclaw-sandbox:latest .micro/
+exec: ls .beta/ && docker build -t betaclaw-sandbox:latest .beta/
 ```
 
 ---
@@ -109,7 +109,7 @@ exec: ls .micro/ && docker build -t microclaw-sandbox:latest .micro/
    ```
    exec: echo "KEY_NAME=value" >> .env
    ```
-5. Suggest: `microclaw setup` if multiple keys are missing.
+5. Suggest: `betaclaw setup` if multiple keys are missing.
 
 ---
 
@@ -119,9 +119,9 @@ exec: ls .micro/ && docker build -t microclaw-sandbox:latest .micro/
 
 **Fix**:
 ```
-exec: rm -rf .micro/whatsapp-auth
+exec: rm -rf .beta/whatsapp-auth
 ```
-Then tell the user: "WhatsApp auth cleared. Run `microclaw start` and scan the QR code that appears to re-pair."
+Then tell the user: "WhatsApp auth cleared. Run `betaclaw start` and scan the QR code that appears to re-pair."
 
 ---
 
@@ -131,7 +131,7 @@ Then tell the user: "WhatsApp auth cleared. Run `microclaw start` and scan the Q
 
 **Fix**:
 ```
-exec: cd /path/to/microclaw && npm run build 2>&1
+exec: cd /path/to/betaclaw && npm run build 2>&1
 ```
 Read the compiler output and fix the specific errors if they are straightforward (missing imports, type mismatches). Report to user if manual intervention is needed.
 
@@ -144,16 +144,16 @@ Read the compiler output and fix the specific errors if they are straightforward
 **Fix**:
 1. Check integrity:
    ```
-   exec: sqlite3 .micro/microclaw.db "PRAGMA integrity_check;"
+   exec: sqlite3 .beta/betaclaw.db "PRAGMA integrity_check;"
    ```
 2. If corrupt:
    ```
-   exec: cp .micro/microclaw.db .micro/microclaw.db.backup-$(date +%s)
-   exec: sqlite3 .micro/microclaw.db ".dump" | sqlite3 .micro/microclaw-recovered.db && mv .micro/microclaw-recovered.db .micro/microclaw.db
+   exec: cp .beta/betaclaw.db .beta/betaclaw.db.backup-$(date +%s)
+   exec: sqlite3 .beta/betaclaw.db ".dump" | sqlite3 .beta/betaclaw-recovered.db && mv .beta/betaclaw-recovered.db .beta/betaclaw.db
    ```
 3. If recovery fails, reset the DB (warn user first):
    ```
-   exec: mv .micro/microclaw.db .micro/microclaw.db.corrupt && echo "Database reset. History lost."
+   exec: mv .beta/betaclaw.db .beta/betaclaw.db.corrupt && echo "Database reset. History lost."
    ```
 
 ---

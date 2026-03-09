@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { estimateTokens } from './token-budget.js';
 import type { SkillDefinition } from './skill-parser.js';
-import type { MicroClawDB } from '../db.js';
+import type { betaclawDB } from '../db.js';
 import { PATHS, GLOBAL_MEMORY_PATH } from './paths.js';
 import { TOOLS } from './tools.js';
 import { readPersonaSupplementBlock, readBehaviorHints } from '../memory/post-turn-extractor.js';
@@ -63,7 +63,7 @@ function extractSoulMeta(soul: string): { name: string; style: string } {
   };
 }
 
-function selectiveMemory(db: MicroClawDB | undefined, groupId: string, memoryPath: string, hint?: string): string {
+function selectiveMemory(db: betaclawDB | undefined, groupId: string, memoryPath: string, hint?: string): string {
   if (db) {
     try {
       const safe = (hint ?? '').replace(/["*(){}:^~.\-/\\]/g, ' ').trim();
@@ -98,7 +98,7 @@ export interface PromptBuilderOptions {
   groupId: string;
   skills?: SkillDefinition[];
   context?: { senderId?: string; channel?: string };
-  db?: MicroClawDB;
+  db?: betaclawDB;
   lastUserMessage?: string;
   promptMode?: PromptMode;
   lightContext?: boolean;
@@ -113,14 +113,14 @@ export async function buildSystemPrompt(
   groupId: string,
   skills?: SkillDefinition[],
   context?: { senderId?: string; channel?: string },
-  db?: MicroClawDB,
+  db?: betaclawDB,
   lastUserMessage?: string,
 ): Promise<string>;
 export async function buildSystemPrompt(
   groupIdOrOpts: string | PromptBuilderOptions,
   skills?: SkillDefinition[],
   context?: { senderId?: string; channel?: string },
-  db?: MicroClawDB,
+  db?: betaclawDB,
   lastUserMessage?: string,
 ): Promise<string> {
   const opts: PromptBuilderOptions = typeof groupIdOrOpts === 'string'
@@ -141,7 +141,7 @@ export async function buildSystemPrompt(
       const rx = /## User Preferences\s*\n([\s\S]*?)(?=\n##|$)/m;
       const m = content.match(rx);
       const prefs = m ? (m[1] ?? '').trim() : '';
-      return prefs === '(Updated automatically as MicroClaw learns your preferences)' ? '' : prefs;
+      return prefs === '(Updated automatically as betaclaw learns your preferences)' ? '' : prefs;
     } catch { return ''; }
   }
 

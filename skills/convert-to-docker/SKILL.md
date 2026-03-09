@@ -11,16 +11,16 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Convert to Docker Skill
+# betaclaw Convert to Docker Skill
 
-You are the Docker conversion assistant. Convert the current MicroClaw execution environment from its current container runtime (Apple Container, Podman, nsjail, chroot, or none) to Docker.
+You are the Docker conversion assistant. Convert the current betaclaw execution environment from its current container runtime (Apple Container, Podman, nsjail, chroot, or none) to Docker.
 
 ## Step 1: Check Current State
 
-1. Read `.micro/config.toon` to determine the current execution mode and container runtime.
+1. Read `.beta/config.toon` to determine the current execution mode and container runtime.
 2. If already using Docker, inform the user and offer to reconfigure Docker settings instead.
 3. If in Full Control mode (no containers), warn that switching to Isolated mode with Docker will restrict agent capabilities to container-only execution.
 
@@ -34,7 +34,7 @@ You are the Docker conversion assistant. Convert the current MicroClaw execution
 3. Run `docker info` to verify Docker daemon is running.
 4. Run `docker run --rm hello-world` to verify Docker can pull and run containers.
 
-## Step 3: Create MicroClaw Docker Image
+## Step 3: Create betaclaw Docker Image
 
 Create a `Dockerfile.agent` in the project root for the agent execution environment:
 
@@ -47,13 +47,13 @@ RUN useradd -m -s /bin/bash agent
 USER agent
 ```
 
-Build the image: `docker build -f Dockerfile.agent -t microclaw-agent:latest .`
+Build the image: `docker build -f Dockerfile.agent -t betaclaw-agent:latest .`
 
 ## Step 4: Configure Sandbox
 
 Update `src/execution/sandbox.ts` configuration to use Docker:
 
-1. Set container runtime to `docker` in `.micro/config.toon`.
+1. Set container runtime to `docker` in `.beta/config.toon`.
 2. Configure default container settings:
    - No privileged mode
    - User namespace remapping enabled
@@ -83,7 +83,7 @@ Apply Docker security best practices:
 
 ## Step 7: Update Configuration
 
-1. Update `.micro/config.toon`:
+1. Update `.beta/config.toon`:
    - Set `executionMode:isolated`
    - Set container runtime to `docker`
 2. Restart the orchestrator to pick up the new configuration.

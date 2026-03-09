@@ -8,22 +8,22 @@ import path from 'node:path';
 
 dotenv.config();
 
-const PID_FILE = path.join('.micro', 'microclaw.pid');
+const PID_FILE = path.join('.beta', 'betaclaw.pid');
 
 function warnLegacyPaths(): void {
-  const legacyDb = 'microclaw.db';
+  const legacyDb = 'betaclaw.db';
   const legacyGroups = 'groups';
   if (fs.existsSync(legacyDb)) {
     console.warn(
-      `\n[MicroClaw] MIGRATION NOTICE: Found legacy database at ./${legacyDb}\n` +
-      `  Data is now stored in .workspace/db/microclaw.db\n` +
+      `\n[betaclaw] MIGRATION NOTICE: Found legacy database at ./${legacyDb}\n` +
+      `  Data is now stored in .workspace/db/betaclaw.db\n` +
       `  To migrate, run:\n` +
-      `    mkdir -p .workspace/db && mv microclaw.db .workspace/db/microclaw.db\n`,
+      `    mkdir -p .workspace/db && mv betaclaw.db .workspace/db/betaclaw.db\n`,
     );
   }
   if (fs.existsSync(legacyGroups) && fs.statSync(legacyGroups).isDirectory()) {
     console.warn(
-      `[MicroClaw] MIGRATION NOTICE: Found legacy groups/ directory at ./groups/\n` +
+      `[betaclaw] MIGRATION NOTICE: Found legacy groups/ directory at ./groups/\n` +
       `  Groups are now stored in .workspace/groups/\n` +
       `  To migrate, run:\n` +
       `    mkdir -p .workspace && mv groups .workspace/groups\n`,
@@ -33,7 +33,7 @@ function warnLegacyPaths(): void {
 
 async function main(): Promise<void> {
   warnLegacyPaths();
-  const { MicroClawDB } = await import('../../db.js');
+  const { betaclawDB } = await import('../../db.js');
   const { Orchestrator } = await import('../../core/orchestrator.js');
   const { ProviderRegistry } = await import('../../core/provider-registry.js');
   const { registerAvailableProviders } = await import('../../core/provider-init.js');
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
 
   const { DB_PATH } = await import('../../core/paths.js');
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  const db = new MicroClawDB(DB_PATH);
+  const db = new betaclawDB(DB_PATH);
   const orchestrator = new Orchestrator();
 
   const sharedRegistry = new ProviderRegistry();
@@ -53,7 +53,7 @@ async function main(): Promise<void> {
     if (p) orchestrator.registerProvider(p);
   }
 
-  if (process.env['WHATSAPP_ENABLED'] === 'true' || fs.existsSync('.micro/whatsapp-auth')) {
+  if (process.env['WHATSAPP_ENABLED'] === 'true' || fs.existsSync('.beta/whatsapp-auth')) {
     orchestrator.registerChannel(new WhatsAppChannel());
   }
 

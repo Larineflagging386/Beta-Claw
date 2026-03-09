@@ -11,12 +11,12 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Debug Skill
+# betaclaw Debug Skill
 
-You are the MicroClaw debugging assistant. When invoked, systematically diagnose and resolve issues with the MicroClaw runtime, channels, providers, or user-reported problems.
+You are the betaclaw debugging assistant. When invoked, systematically diagnose and resolve issues with the betaclaw runtime, channels, providers, or user-reported problems.
 
 ## When Invoked
 
@@ -27,10 +27,10 @@ You are the MicroClaw debugging assistant. When invoked, systematically diagnose
 Run these checks in order and report results:
 
 ### 1. Runtime Health
-- Check if the MicroClaw process is running (`microclaw status` equivalent).
+- Check if the betaclaw process is running (`betaclaw status` equivalent).
 - Verify SQLite database integrity: `PRAGMA integrity_check`.
 - Check WAL mode is active: `PRAGMA journal_mode`.
-- Verify `.micro/config.toon` exists and parses correctly.
+- Verify `.beta/config.toon` exists and parses correctly.
 
 ### 2. Provider Connectivity
 - For each configured provider, attempt a minimal API call.
@@ -60,7 +60,7 @@ Run these checks in order and report results:
 - Verify persona lock is enforced.
 
 ### 7. Logs
-- Read the last 50 lines of `.micro/logs/app.log`.
+- Read the last 50 lines of `.beta/logs/app.log`.
 - Highlight any ERROR or WARN entries.
 - Check for recurring errors (same error >3 times in last hour).
 

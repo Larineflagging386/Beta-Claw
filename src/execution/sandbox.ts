@@ -30,7 +30,7 @@ export interface SandboxRunOptions {
 }
 
 const activeContainers = new Map<string, string>();
-const SHARED_KEY = 'microclaw-sandbox-shared';
+const SHARED_KEY = 'betaclaw-sandbox-shared';
 
 export function shouldSandbox(opts: SandboxRunOptions): boolean {
   if (opts.cfg.mode === 'off')  return false;
@@ -66,7 +66,7 @@ function hostExec(cmd: string, cwd: string, timeoutMs: number): Promise<string> 
 
 function dockerExec(cmd: string, opts: SandboxRunOptions, timeoutMs: number): Promise<string> {
   const id = ensureContainer(opts);
-  if (!id) return Promise.resolve('Sandbox unavailable: Docker not found or image not built.\nRun: microclaw sandbox setup');
+  if (!id) return Promise.resolve('Sandbox unavailable: Docker not found or image not built.\nRun: betaclaw sandbox setup');
   return spawnAsync('docker', ['exec', id, 'bash', '-c', cmd], { env: process.env }, timeoutMs);
 }
 
@@ -217,7 +217,7 @@ export const DEFAULT_SANDBOX_CONFIG: SandboxConfig = {
   mode:            'non-main',
   scope:           'session',
   workspaceAccess: 'none',
-  image:           'microclaw-sandbox:latest',
+  image:           'betaclaw-sandbox:latest',
   network:         'none',
   readOnlyRoot:    true,
   binds:           [],

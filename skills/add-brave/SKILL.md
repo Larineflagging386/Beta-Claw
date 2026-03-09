@@ -13,12 +13,12 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Add Brave Search Skill
+# betaclaw Add Brave Search Skill
 
-You are the Brave Search configuration assistant. Set up the Brave Search API so MicroClaw can search the web for real-time information.
+You are the Brave Search configuration assistant. Set up the Brave Search API so betaclaw can search the web for real-time information.
 
 ## Step 1: Get API Key
 
@@ -58,7 +58,7 @@ Verify that `src/search/brave.ts` exists and is properly configured:
 
 ## Step 5: Register Search Provider
 
-1. Update `.micro/config.toon` to set search provider:
+1. Update `.beta/config.toon` to set search provider:
    ```
    @search{
      provider:brave
@@ -86,7 +86,7 @@ Verify `prompts/tools/tool-descriptions/brave_search.toon` exists with proper sc
 
 ## Step 7: Test End-to-End
 
-1. Run a search through MicroClaw: ask the agent "What's the latest news about AI?"
+1. Run a search through betaclaw: ask the agent "What's the latest news about AI?"
 2. Verify:
    - The complexity estimator sets `web_search_needed: true`
    - Query extractor produces a clean search query

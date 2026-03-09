@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import cron from 'node-cron';
-import type { MicroClawDB, ScheduledTask } from '../db.js';
+import type { betaclawDB, ScheduledTask } from '../db.js';
 import type { ProviderRegistry } from '../core/provider-registry.js';
 import type { ModelEntry } from '../core/model-catalog.js';
 import { agentLoop } from '../core/agent-loop.js';
@@ -24,7 +24,7 @@ export class TaskScheduler extends EventEmitter {
   private running = new Set<string>();
 
   constructor(
-    private db: MicroClawDB,
+    private db: betaclawDB,
     private registry?: ProviderRegistry,
     private catalog?: ModelEntry[],
     _whatsappSend?: WhatsAppSendFn,

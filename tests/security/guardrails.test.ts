@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Guardrails } from '../../src/security/guardrails.js';
 import { PersonaLock } from '../../src/security/persona-lock.js';
 import type { PersonaConfig } from '../../src/security/persona-lock.js';
-import { MicroClawDB } from '../../src/db.js';
+import { betaclawDB } from '../../src/db.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
 function tmpDbPath(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'microclaw-guardrails-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'betaclaw-guardrails-'));
   return path.join(dir, 'test.db');
 }
 
@@ -21,13 +21,13 @@ const testPersonaConfig: PersonaConfig = {
 };
 
 describe('Guardrails', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let dbPath: string;
   let guardrails: Guardrails;
 
   beforeEach(() => {
     dbPath = tmpDbPath();
-    db = new MicroClawDB(dbPath);
+    db = new betaclawDB(dbPath);
     guardrails = new Guardrails(db);
   });
 

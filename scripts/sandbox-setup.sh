@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# One-time build of the MicroClaw sandbox image.
+# One-time build of the betaclaw sandbox image.
 # Run once: bash scripts/sandbox-setup.sh
 set -e
 
-IMAGE="microclaw-sandbox:latest"
+IMAGE="betaclaw-sandbox:latest"
 echo "[sandbox-setup] Building $IMAGE ..."
 
 docker build -t "$IMAGE" - <<'DOCKERFILE'

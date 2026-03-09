@@ -263,8 +263,8 @@ class OpenRouterAdapter implements IProviderAdapter {
     const apiKey = this.getApiKey();
     const headers: Record<string, string> = {
       Authorization: `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://github.com/microclaw',
-      'X-Title': 'MicroClaw',
+      'HTTP-Referer': 'https://github.com/betaclaw',
+      'X-Title': 'BetaClaw',
     };
     const buf = Buffer.from(apiKey);
     buf.fill(0);

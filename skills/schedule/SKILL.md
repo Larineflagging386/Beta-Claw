@@ -13,7 +13,7 @@ When the user asks you to check on them, follow up, or do something after a dela
 ## Schedule a one-shot message
 
 ```bash
-microclaw schedule once --group {GROUP_ID} --delay "30 seconds" --message "Hey! Checking in"
+betaclaw schedule once --group {GROUP_ID} --delay "30 seconds" --message "Hey! Checking in"
 ```
 
 Valid delay formats: "30 seconds", "5 minutes", "2 hours", "1 day"
@@ -26,11 +26,11 @@ Always say: "I'll check in with you in {delay}!"
 ## Cancel a pending task
 
 ```bash
-microclaw schedule cancel --id {TASK_ID}
+betaclaw schedule cancel --id {TASK_ID}
 ```
 
 ## List pending tasks
 
 ```bash
-microclaw schedule list-pending --group {GROUP_ID}
+betaclaw schedule list-pending --group {GROUP_ID}
 ```

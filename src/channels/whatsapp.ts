@@ -5,7 +5,7 @@ import type { IChannel, InboundMessage, OutboundMessage, ChannelFeature } from '
 
 type MessageHandler = (msg: InboundMessage) => void | Promise<void>;
 
-const AUTH_DIR = '.micro/whatsapp-auth';
+const AUTH_DIR = '.beta/whatsapp-auth';
 // Trigger word is only required in GROUP chats to avoid responding to every message.
 // In DMs (1-on-1) every message is processed without needing a trigger.
 const TRIGGER = process.env['TRIGGER_WORD'] ?? '@rem';
@@ -68,7 +68,7 @@ export class WhatsAppChannel implements IChannel {
           version,
           auth: state,
           logger: silentLogger,
-          browser: ['MicroClaw', 'Desktop', '3.0.0'],
+          browser: ['betaclaw', 'Desktop', '3.0.0'],
         });
 
         this.sock = sock;
@@ -84,7 +84,7 @@ export class WhatsAppChannel implements IChannel {
               qrTerminal.generate(update.qr as string, { small: true });
               console.log('\n[whatsapp] Waiting for scan... If it refreshes, scan the newest one.\n');
             } catch {
-              console.log('[whatsapp] QR code available — install qrcode-terminal to display it, or use microclaw setup to pair.');
+              console.log('[whatsapp] QR code available — install qrcode-terminal to display it, or use betaclaw setup to pair.');
             }
           }
           if (update.connection === 'open') {
@@ -97,7 +97,7 @@ export class WhatsAppChannel implements IChannel {
             const statusCode = update.lastDisconnect?.error?.output?.statusCode;
             const errMsg = update.lastDisconnect?.error?.message ?? 'unknown';
             if (statusCode === DisconnectReason.loggedOut) {
-              console.log('[whatsapp] Logged out — delete .micro/whatsapp-auth and restart.');
+              console.log('[whatsapp] Logged out — delete .beta/whatsapp-auth and restart.');
               return;
             }
             const isRestartRequired = statusCode === RESTART_REQUIRED;

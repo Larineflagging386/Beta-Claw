@@ -10,10 +10,10 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Clear / Compact Skill
+# betaclaw Clear / Compact Skill
 
 You are the conversation compaction assistant. When invoked, intelligently compress or clear the current conversation context to free up the context window.
 
@@ -81,7 +81,7 @@ Present options:
 
 ## Automatic Compaction
 
-Remind the user that MicroClaw automatically compacts when the context window reaches 85% capacity. The `/clear` command is for manual intervention when the user wants to:
+Remind the user that betaclaw automatically compacts when the context window reaches 85% capacity. The `/clear` command is for manual intervention when the user wants to:
 - Free up context space for a new topic
 - Remove sensitive conversation content
 - Start a new topic cleanly

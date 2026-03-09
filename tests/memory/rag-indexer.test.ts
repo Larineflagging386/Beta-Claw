@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { MicroClawDB } from '../../src/db.js';
+import { betaclawDB } from '../../src/db.js';
 import {
   RagIndexer,
   DEFAULT_CHUNK_SIZE,
@@ -10,17 +10,17 @@ import path from 'node:path';
 import os from 'node:os';
 
 function tmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'microclaw-rag-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'betaclaw-rag-test-'));
 }
 
 describe('RagIndexer', () => {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   let indexer: RagIndexer;
   let tempDir: string;
 
   beforeEach(() => {
     tempDir = tmpDir();
-    db = new MicroClawDB(path.join(tempDir, 'test.db'));
+    db = new betaclawDB(path.join(tempDir, 'test.db'));
     indexer = new RagIndexer(db);
   });
 

@@ -5,7 +5,7 @@ Created: 2025-03-07
 Family group chat. Mia helps with family coordination, scheduling,
 and general questions.
 
-## MicroClaw Config
+## BetaClaw Config
 @group{
   triggerWord:@Mia
   allowedTools:[brave_search, fetch_url, read_file, write_file]

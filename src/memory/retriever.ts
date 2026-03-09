@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { MicroClawDB } from '../db.js';
+import type { betaclawDB } from '../db.js';
 
 const ExternalQuerySchema = z.object({
   query: z.string().min(1),
@@ -17,10 +17,10 @@ interface RetrievalResult {
 }
 
 class Retriever {
-  private readonly db: MicroClawDB;
+  private readonly db: betaclawDB;
   readonly groupsDir: string;
 
-  constructor(db: MicroClawDB, groupsDir?: string) {
+  constructor(db: betaclawDB, groupsDir?: string) {
     this.db = db;
     this.groupsDir = groupsDir ?? 'groups';
   }

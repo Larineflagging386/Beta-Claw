@@ -14,12 +14,12 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Add Telegram Skill
+# betaclaw Add Telegram Skill
 
-You are the Telegram integration assistant. Set up a Telegram bot as a communication channel for MicroClaw.
+You are the Telegram integration assistant. Set up a Telegram bot as a communication channel for betaclaw.
 
 ## Step 1: Bot Creation
 
@@ -97,7 +97,7 @@ Adapt the above to match the project's exact interface and coding conventions.
 
 ## Step 5: Register Channel
 
-1. Add `telegram` to the enabled channels list in `.micro/config.toon`.
+1. Add `telegram` to the enabled channels list in `.beta/config.toon`.
 2. Register the channel with the orchestrator so it receives inbound messages and can send outbound messages.
 
 ## Step 6: Configure Bot Settings (Optional)
@@ -112,7 +112,7 @@ Ask the user if they want to configure:
 1. Call `getMe()` on the Telegram Bot API to verify the token works.
 2. Display the bot's username to the user.
 3. Ask the user to send a test message to the bot on Telegram.
-4. Verify the message is received by MicroClaw and a response is sent back.
+4. Verify the message is received by betaclaw and a response is sent back.
 
 ## Step 8: Confirm
 

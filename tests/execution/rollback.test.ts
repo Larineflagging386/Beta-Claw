@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { RollbackManager, ManifestSchema } from '../../src/execution/rollback.js';
-import { MicroClawDB } from '../../src/db.js';
+import { betaclawDB } from '../../src/db.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -230,7 +230,7 @@ describe('RollbackManager', () => {
 
   it('records snapshot metadata in DB when provided', async () => {
     const dbPath = tmpDbPath();
-    const db = new MicroClawDB(dbPath);
+    const db = new betaclawDB(dbPath);
 
     try {
       const dbManager = new RollbackManager(

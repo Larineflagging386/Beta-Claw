@@ -5,31 +5,37 @@ node_modules
 out
 dist
 *.tgz
-.micro/
+.beta/
 # code coverage
 coverage
 *.lcov
 claude.md
 .cursor/claude.md
 .cursor/rules/claude.md
-MicroClaw_PRD_v2.0.docx
-MicroClaw_PRD_v2.md
-MicroClaw_FULL_DOC.md
+BetaClaw_PRD_v2.0.docx
+BetaClaw_PRD_v2.md
+BetaClaw_FULL_DOC.md
 # logs
 logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 CLAUDE.md
-MICROCLAW_FULL_DOC.md
+BETACLAW_FULL_DOC.md
 .cursor/
 .workspace/
 :memory:
-microclaw.db
-microclaw.db-wal
-microclaw.db-shm
-microclaw.md
+betaclaw.db
+betaclaw.db-wal
+betaclaw.db-shm
+betaclaw.md
 48434866319368@lid
-
+BetaClaw_FULL_DOC.md
+betaClaw_PRD_v2.md
+.micro/
+MicroClaw_PRD_v2.0.docx
+MicroClaw_PRD_v2.md
+MicroClaw_FULL_DOC.md
+microclaw.md
 # dotenv environment variable files
 .env
 .env.development.local
@@ -47,17 +53,17 @@ microclaw.md
 
 # Finder (MacOS) folder config
 .DS_Store
-.micro/vault.enc
-.micro/vault.salt
-.micro/model-catalog.db
-.micro/snapshots/
-.micro/logs/
-.micro/config.toon
+.beta/vault.enc
+.beta/vault.salt
+.beta/model-catalog.db
+.beta/snapshots/
+.beta/logs/
+.beta/config.toon
 
 # Database
-microclaw.db
-microclaw.db-wal
-microclaw.db-shm
+betaclaw.db
+betaclaw.db-wal
+betaclaw.db-shm
 
 # Group workspaces
 groups/*/workspace/

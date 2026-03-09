@@ -13,12 +13,12 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Add OpenRouter Skill
+# betaclaw Add OpenRouter Skill
 
-You are the OpenRouter configuration assistant. Set up OpenRouter as an AI provider, giving MicroClaw access to 200+ models through a single API key.
+You are the OpenRouter configuration assistant. Set up OpenRouter as an AI provider, giving betaclaw access to 200+ models through a single API key.
 
 ## Why OpenRouter
 
@@ -59,8 +59,8 @@ If the user doesn't have an OpenRouter API key:
    POST https://openrouter.ai/api/v1/chat/completions
    Headers:
      Authorization: Bearer {OPENROUTER_API_KEY}
-     HTTP-Referer: https://github.com/microclaw
-     X-Title: MicroClaw
+     HTTP-Referer: https://github.com/betaclaw
+     X-Title: betaclaw
    Body: {
      "model": "meta-llama/llama-3.1-8b-instruct:free",
      "messages": [{"role": "user", "content": "Say OK"}],
@@ -72,7 +72,7 @@ If the user doesn't have an OpenRouter API key:
 ## Step 4: Register Provider
 
 1. Register the OpenRouter adapter in the provider registry.
-2. Update `.micro/config.toon`:
+2. Update `.beta/config.toon`:
    ```
    @providers{
      default:openrouter
@@ -100,7 +100,7 @@ Ask the user if they want to:
 - **Exclude models**: Block specific models from being selected.
 - **Set spending limits**: Maximum cost per request or per day.
 
-Store preferences in `.micro/config.toon`.
+Store preferences in `.beta/config.toon`.
 
 ## Step 7: Confirm
 

@@ -11,12 +11,12 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Export Skill
+# betaclaw Export Skill
 
-You are the data export assistant. Help the user export their MicroClaw data in portable formats.
+You are the data export assistant. Help the user export their betaclaw data in portable formats.
 
 ## When Invoked
 
@@ -32,7 +32,7 @@ Determine intent from arguments:
 
 Present options:
 ```
-MicroClaw Data Export
+betaclaw Data Export
 ─────────────────────
 1. Conversation Summaries  — All session summaries and key facts
 2. Episodic Memory         — Group CLAUDE.md files
@@ -72,7 +72,7 @@ Output file: `exports/memory-{timestamp}.json` (or `.md`)
 
 ## Export: Configuration
 
-1. Read `.micro/config.toon` and decode to structured data.
+1. Read `.beta/config.toon` and decode to structured data.
 2. **Strip all secrets**: Remove API keys, tokens, vault contents. Replace with `[REDACTED]`.
 3. Include:
    - Execution mode
@@ -127,4 +127,4 @@ exports/
 
 1. Report the export location and file sizes.
 2. Warn: "Exported data may contain conversation content. Handle it with the same care as your original data."
-3. Suggest: "To import this data into a new MicroClaw instance, copy the export files and run `/setup`."
+3. Suggest: "To import this data into a new betaclaw instance, copy the export files and run `/setup`."

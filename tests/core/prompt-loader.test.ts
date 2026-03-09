@@ -102,7 +102,7 @@ describe('PromptLoader', () => {
     writePrompt(
       tmpDir,
       'versioned.txt',
-      '# version:1.0 | updated:2025-01-15 | author:microclaw\nActual prompt content',
+      '# version:1.0 | updated:2025-01-15 | author:betaclaw\nActual prompt content',
     );
     const content = await loader.load('versioned.txt');
     expect(content).toBe('Actual prompt content');
@@ -114,7 +114,7 @@ describe('PromptLoader', () => {
     writePrompt(
       tmpDir,
       'multi.txt',
-      '# version:2.0 | updated:2025-06-01 | author:microclaw\nLine one\nLine two\nLine three',
+      '# version:2.0 | updated:2025-06-01 | author:betaclaw\nLine one\nLine two\nLine three',
     );
     const content = await loader.load('multi.txt');
     expect(content).toBe('Line one\nLine two\nLine three');
@@ -130,7 +130,7 @@ describe('PromptLoader', () => {
     writePrompt(
       tmpDir,
       'full.txt',
-      '# version:1.0 | updated:2025-01-15 | author:microclaw\nHello {{USER}}, your role is {{ROLE}}.',
+      '# version:1.0 | updated:2025-01-15 | author:betaclaw\nHello {{USER}}, your role is {{ROLE}}.',
     );
     const result = await loader.render('full.txt', {
       USER: 'Charlie',

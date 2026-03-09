@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { encode } from './toon-serializer.js';
-import { MicroClawDB } from '../db.js';
+import { betaclawDB } from '../db.js';
 
 interface CachedToolResult {
   toolName: string;
@@ -42,10 +42,10 @@ function computeInputHash(inputs: Record<string, unknown>, groupId?: string): st
 }
 
 class ToolCache {
-  private readonly db: MicroClawDB;
+  private readonly db: betaclawDB;
   private readonly groupId: string | undefined;
 
-  constructor(db: MicroClawDB, groupId?: string) {
+  constructor(db: betaclawDB, groupId?: string) {
     this.db = db;
     this.groupId = groupId;
   }

@@ -10,12 +10,12 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Status Skill
+# betaclaw Status Skill
 
-You are the system status reporter. When invoked, display a comprehensive overview of the MicroClaw runtime health.
+You are the system status reporter. When invoked, display a comprehensive overview of the betaclaw runtime health.
 
 ## Output Format
 
@@ -23,7 +23,7 @@ Display a formatted status dashboard:
 
 ```
 ╔══════════════════════════════════════════╗
-║          MicroClaw v2.0.0 Status        ║
+║          betaclaw v2.0.0 Status        ║
 ╠══════════════════════════════════════════╣
 ║ Platform:    linux x86_64               ║
 ║ Profile:     standard (2GB RAM, 4 CPU)  ║
@@ -37,7 +37,7 @@ Display a formatted status dashboard:
 
 ### 1. Runtime
 
-- MicroClaw version
+- betaclaw version
 - Platform and architecture
 - Resource profile (micro/lite/standard/full)
 - Execution mode (isolated/full-control)
@@ -136,7 +136,7 @@ Security
 ```
 Database
 ────────
-  File:          microclaw.db
+  File:          betaclaw.db
   Size:          4.2 MB
   WAL Mode:      ✅ Active
   Messages:      1,247

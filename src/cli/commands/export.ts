@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import path from 'node:path';
-import { MicroClawDB } from '../../db.js';
+import { betaclawDB } from '../../db.js';
 import { DB_PATH, EXPORTS_DIR } from '../../core/paths.js';
 
 interface ExportOptions {
@@ -44,7 +44,7 @@ interface ExportPayload {
   }>;
 }
 
-function buildPayload(db: MicroClawDB, groupId?: string): ExportPayload {
+function buildPayload(db: betaclawDB, groupId?: string): ExportPayload {
   const groups = groupId
     ? [db.getGroup(groupId)].filter(Boolean) as ExportPayload['groups']
     : db.getAllGroups();
@@ -86,7 +86,7 @@ function buildPayload(db: MicroClawDB, groupId?: string): ExportPayload {
 
 function toMarkdown(payload: ExportPayload): string {
   const lines: string[] = [
-    `# MicroClaw Export`,
+    `# betaclaw Export`,
     ``,
     `Exported at: ${payload.exportedAt}`,
     ``,
@@ -136,13 +136,13 @@ function toMarkdown(payload: ExportPayload): string {
 }
 
 function runExport(options: ExportOptions): void {
-  let db: MicroClawDB;
+  let db: betaclawDB;
   try {
     mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    db = new MicroClawDB(DB_PATH);
+    db = new betaclawDB(DB_PATH);
   } catch {
     console.error('Could not open database at', DB_PATH);
-    console.error('Run "microclaw setup" first.');
+    console.error('Run "betaclaw setup" first.');
     return;
   }
 

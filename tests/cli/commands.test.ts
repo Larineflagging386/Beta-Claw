@@ -15,7 +15,7 @@ import { exportCommand } from '../../src/cli/commands/export.js';
 
 function buildProgram(): Command {
   const program = new Command();
-  program.name('microclaw').exitOverride();
+  program.name('betaclaw').exitOverride();
   program.addCommand(chatCommand);
   program.addCommand(startCommand);
   program.addCommand(stopCommand);

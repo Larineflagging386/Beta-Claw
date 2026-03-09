@@ -2,15 +2,15 @@ import path from 'node:path';
 
 export const PATHS = {
   root:       process.cwd(),
-  micro:      '.micro',
-  db:         '.micro/microclaw.db',
-  vault:      '.micro/vault.enc',
-  vaultSalt:  '.micro/vault.salt',
-  config:     '.micro/config.toon',
-  logs:       '.micro/logs',
-  snapshots:  '.micro/snapshots',
-  sandboxes:  '.micro/sandboxes',
-  hooks:      '.micro/hooks',
+  beta:       '.beta',
+  db:         '.beta/betaclaw.db',
+  vault:      '.beta/vault.enc',
+  vaultSalt:  '.beta/vault.salt',
+  config:     '.beta/config.toon',
+  logs:       '.beta/logs',
+  snapshots:  '.beta/snapshots',
+  sandboxes:  '.beta/sandboxes',
+  hooks:      '.beta/hooks',
   skills:     'skills',
   prompts:    'prompts',
   groups:     'groups',
@@ -31,14 +31,14 @@ export const IMAGES_DIR      = path.join(WORKSPACE, 'images');
 export const DOWNLOADS_DIR   = path.join(WORKSPACE, 'downloads');
 export const WORK_DIR        = path.join(WORKSPACE, 'work');
 export const EXPORTS_DIR     = path.join(WORKSPACE, 'exports');
-export const MICRO_DIR       = path.resolve(PATHS.micro);
+export const BETA_DIR        = path.resolve(PATHS.beta);
 export const CONFIG_PATH     = path.resolve(PATHS.config);
 export const LOGS_DIR        = path.resolve(PATHS.logs);
 export const VAULT_PATH      = path.resolve(PATHS.vault);
 export const SNAPSHOTS_DIR   = path.resolve(PATHS.snapshots);
 export const PROMPTS_DIR     = path.resolve(PATHS.prompts);
 export const HEARTBEAT_PROMPT_PATH = path.join(PROMPTS_DIR, 'heartbeat', 'heartbeat-prompt.toon');
-export const GLOBAL_MEMORY_PATH = path.resolve('microclaw.md');
+export const GLOBAL_MEMORY_PATH = path.resolve('betaclaw.md');
 
 export const MEMORY_FILENAME            = 'MEMORY.md';
 export const SOUL_FILENAME              = 'SOUL.md';

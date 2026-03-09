@@ -12,19 +12,19 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Rollback Skill
+# betaclaw Rollback Skill
 
-You are the rollback assistant. Help the user revert filesystem changes made by MicroClaw agents to a previous snapshot.
+You are the rollback assistant. Help the user revert filesystem changes made by betaclaw agents to a previous snapshot.
 
 ## How Snapshots Work
 
-MicroClaw creates automatic snapshots before any filesystem mutation in Full Control mode:
+betaclaw creates automatic snapshots before any filesystem mutation in Full Control mode:
 - Content-addressed storage (SHA-256 of file content)
 - Unchanged files are deduplicated — only modified files consume storage
-- Snapshots stored in `.micro/snapshots/YYYYMMDD-HHMMSS/`
+- Snapshots stored in `.beta/snapshots/YYYYMMDD-HHMMSS/`
 - Maximum 20 snapshots retained; oldest pruned automatically
 - Each snapshot records: timestamp, description, list of affected paths
 
@@ -45,7 +45,7 @@ Determine intent from arguments:
    ───────────────────
    #  Time                  Files Changed  Description
    1  2025-01-15 14:32:05   3 files        Modified src/channels/telegram.ts
-   2  2025-01-15 14:28:12   1 file         Updated .micro/config.toon
+   2  2025-01-15 14:28:12   1 file         Updated .beta/config.toon
    3  2025-01-15 13:45:00   5 files        Gmail integration setup
    ...
    ```
@@ -67,7 +67,7 @@ Determine intent from arguments:
 
 ## Safety Rules
 
-- Never roll back vault files (`.micro/vault.enc`, `.micro/vault.salt`) — this could lock the user out of their secrets.
+- Never roll back vault files (`.beta/vault.enc`, `.beta/vault.salt`) — this could lock the user out of their secrets.
 - Never roll back the SQLite database file — data integrity risk. Offer to export/import specific records instead.
 - Never roll back `.git/` directory contents.
 - If a file being restored is currently open/locked by another process, warn the user and skip that file.

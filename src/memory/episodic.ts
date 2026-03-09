@@ -88,7 +88,7 @@ class EpisodicMemory {
     const configLines: string[] = [];
 
     for (const line of lines) {
-      if (line.trimEnd() === '## MicroClaw Config') {
+      if (line.trimEnd() === '## betaclaw Config') {
         inConfig = true;
         continue;
       }

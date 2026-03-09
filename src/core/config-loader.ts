@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { decode } from './toon-serializer.js';
 
-export interface MicroClawConfig {
+export interface betaclawConfig {
   version: string;
   profile: 'micro' | 'lite' | 'standard' | 'full';
   executionMode: 'isolated' | 'full_control';
@@ -23,7 +23,7 @@ export interface MicroClawConfig {
   ragChunkOverlap: number;
 }
 
-const DEFAULTS: MicroClawConfig = {
+const DEFAULTS: betaclawConfig = {
   version: '2.0.0',
   profile: 'standard',
   executionMode: 'isolated',
@@ -59,10 +59,10 @@ function toBool(val: unknown, fallback: boolean): boolean {
   return fallback;
 }
 
-let _config: MicroClawConfig | null = null;
+let _config: betaclawConfig | null = null;
 
-export function loadConfig(configPath?: string): MicroClawConfig {
-  const filePath = configPath ?? path.join(process.cwd(), '.micro', 'config.toon');
+export function loadConfig(configPath?: string): betaclawConfig {
+  const filePath = configPath ?? path.join(process.cwd(), '.beta', 'config.toon');
   if (!fs.existsSync(filePath)) return { ...DEFAULTS };
 
   try {
@@ -79,11 +79,11 @@ export function loadConfig(configPath?: string): MicroClawConfig {
 
     return {
       version:            String(d['version'] ?? DEFAULTS.version),
-      profile:            (d['profile'] as MicroClawConfig['profile']) ?? DEFAULTS.profile,
-      executionMode:      (d['executionMode'] as MicroClawConfig['executionMode']) ?? DEFAULTS.executionMode,
+      profile:            (d['profile'] as betaclawConfig['profile']) ?? DEFAULTS.profile,
+      executionMode:      (d['executionMode'] as betaclawConfig['executionMode']) ?? DEFAULTS.executionMode,
       triggerWord:        String(d['triggerWord'] ?? DEFAULTS.triggerWord),
       persona:            String(persona['name'] ?? DEFAULTS.persona),
-      personaStyle:       (persona['style'] as MicroClawConfig['personaStyle']) ?? DEFAULTS.personaStyle,
+      personaStyle:       (persona['style'] as betaclawConfig['personaStyle']) ?? DEFAULTS.personaStyle,
       provider:           String(d['provider'] ?? DEFAULTS.provider),
       cliEnabled:         toBool(cli['enabled'], DEFAULTS.cliEnabled),
       httpEnabled:        toBool(http['enabled'], DEFAULTS.httpEnabled),
@@ -102,12 +102,12 @@ export function loadConfig(configPath?: string): MicroClawConfig {
   }
 }
 
-export function getConfig(): MicroClawConfig {
+export function getConfig(): betaclawConfig {
   if (!_config) _config = loadConfig();
   return _config;
 }
 
-export function reloadConfig(): MicroClawConfig {
+export function reloadConfig(): betaclawConfig {
   _config = loadConfig();
   return _config;
 }

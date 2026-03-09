@@ -21,7 +21,7 @@ import { scheduleCommand } from './commands/schedule.js';
 const program = new Command();
 
 program
-  .name('microclaw')
+  .name('betaclaw')
   .description('Open, provider-agnostic AI agent runtime')
   .version('3.0.0');
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { MicroClawDB } from '../db.js';
+import { betaclawDB } from '../db.js';
 import { PersonaLock } from './persona-lock.js';
 
 const SeveritySchema = z.enum(['low', 'medium', 'high', 'critical']);
@@ -50,9 +50,9 @@ const SECRET_PATTERNS: ReadonlyArray<{ pattern: RegExp; label: string }> = [
 ];
 
 class Guardrails {
-  private readonly db: MicroClawDB;
+  private readonly db: betaclawDB;
 
-  constructor(db: MicroClawDB, _vaultDir?: string) {
+  constructor(db: betaclawDB, _vaultDir?: string) {
     this.db = db;
   }
 

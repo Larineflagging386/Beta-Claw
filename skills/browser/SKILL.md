@@ -4,7 +4,7 @@ command: /browser
 description: Control a browser — navigate, click, fill forms, screenshot, scrape, run JS. Ask user for headless preference.
 allowed-tools: ["browser"]
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
 # Browser Control
@@ -56,7 +56,7 @@ browser action=evaluate sessionId=main script="document.title"
 ```
 browser action=save_state sessionId=main
 ```
-State is saved to `.micro/browser-state/{sessionId}.json` and reloaded on next open.
+State is saved to `.beta/browser-state/{sessionId}.json` and reloaded on next open.
 
 ## Close session
 ```

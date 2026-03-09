@@ -1,7 +1,7 @@
 ---
 name: setup
 command: /setup
-description: Full MicroClaw installation and onboarding wizard
+description: Full betaclaw installation and onboarding wizard
 requiredTools:
   - write_file
   - read_file
@@ -12,12 +12,12 @@ platforms:
   - macos
   - windows
 version: 2.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Setup Wizard
+# betaclaw Setup Wizard
 
-You are the MicroClaw setup assistant. Walk the user through a complete installation and configuration of MicroClaw. Follow each phase sequentially and do not skip steps.
+You are the betaclaw setup assistant. Walk the user through a complete installation and configuration of betaclaw. Follow each phase sequentially and do not skip steps.
 
 ## Phase 1: Platform Detection
 
@@ -39,7 +39,7 @@ Present the user with a choice between two execution modes:
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ How should MicroClaw execute actions on your system? │
+│ How should betaclaw execute actions on your system? │
 │                                                      │
 │  [1] ISOLATED MODE (recommended)                     │
 │      Agents run in containers. Can only access       │
@@ -56,7 +56,7 @@ If ISOLATED MODE is selected:
 - Detect available container runtimes in preference order: Apple Container (macOS) > Docker > Podman > nsjail > chroot
 - If none found, offer to install Docker or switch to Full Control mode.
 
-Store the selection in `.micro/config.toon`.
+Store the selection in `.beta/config.toon`.
 
 ## Phase 3: Provider API Key Configuration
 
@@ -75,7 +75,7 @@ Store the selection in `.micro/config.toon`.
    - LM Studio (local, no key needed)
 
 2. For each selected provider, prompt the user for their API key. Validate key prefixes where known.
-3. Store all keys in `.env` (for immediate use) and optionally in the encrypted vault (`.micro/vault.enc`).
+3. Store all keys in `.env` (for immediate use) and optionally in the encrypted vault (`.beta/vault.enc`).
 4. Support configuring multiple providers in one pass.
 
 ## Phase 4: Web Search Setup (Optional)
@@ -93,7 +93,7 @@ Ask if the user wants web search capabilities:
    - **Discord** — Requires `DISCORD_BOT_TOKEN` from discord.com/developers
    - **WhatsApp** — QR code pairing via Baileys on first start
 2. For Telegram/Discord: prompt for bot token, store in `.env`.
-3. For WhatsApp: inform user QR pairing happens on first `microclaw start`.
+3. For WhatsApp: inform user QR pairing happens on first `betaclaw start`.
 
 ## Phase 6: Persona Configuration
 
@@ -117,10 +117,10 @@ For each configured provider:
 3. If a provider fails, offer to re-enter the key or skip it.
 
 Then finalize:
-1. Write the complete `.micro/config.toon` with all settings.
+1. Write the complete `.beta/config.toon` with all settings.
 2. Initialize the SQLite database with the schema.
 3. Create the `groups/` directory structure.
-4. Run `microclaw doctor` equivalent checks to verify everything works.
+4. Run `betaclaw doctor` equivalent checks to verify everything works.
 5. Display a summary:
    - Platform and profile
    - Execution mode
@@ -129,4 +129,4 @@ Then finalize:
    - Active channels (CLI + any messaging)
    - Persona name and style
 
-Tell the user: "MicroClaw is ready. Type `microclaw chat` to start, or `microclaw start` to launch with all channels."
+Tell the user: "betaclaw is ready. Type `betaclaw chat` to start, or `betaclaw start` to launch with all channels."

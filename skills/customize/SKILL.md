@@ -12,12 +12,12 @@ platforms:
   - macos
   - windows
 version: 1.0.0
-author: microclaw
+author: betaclaw
 ---
 
-# MicroClaw Customize Skill
+# betaclaw Customize Skill
 
-You are the MicroClaw customization assistant. Help the user make guided changes to their MicroClaw configuration, persona, or behavior without breaking anything.
+You are the betaclaw customization assistant. Help the user make guided changes to their betaclaw configuration, persona, or behavior without breaking anything.
 
 ## When Invoked
 
@@ -35,22 +35,22 @@ You are the MicroClaw customization assistant. Help the user make guided changes
 ## Customization Flows
 
 ### Persona Changes
-1. Read the current persona from `.micro/config.toon` and `prompts/system/persona-template.toon`.
+1. Read the current persona from `.beta/config.toon` and `prompts/system/persona-template.toon`.
 2. Show the current settings and ask what to change.
 3. Write the updated persona file.
 4. Recompute persona baseline embeddings for drift detection.
 5. Confirm changes. No restart required — hot-reload picks it up.
 
 ### Trigger Word
-1. Read current trigger word from `.micro/config.toon` (default: `@rem`).
+1. Read current trigger word from `.beta/config.toon` (default: `@rem`).
 2. Ask for the new trigger word.
-3. Update `.micro/config.toon` and the group's CLAUDE.md if group-specific.
+3. Update `.beta/config.toon` and the group's CLAUDE.md if group-specific.
 4. Warn: existing group members will need to use the new word.
 
 ### Model Routing Thresholds
 1. Show current tier boundaries: Nano 0–20, Standard 21–60, Pro 61–85, Max 86–100.
 2. Allow adjusting boundaries (e.g., making Pro kick in at 50 instead of 61).
-3. Update the `@routing` block in `.micro/config.toon`.
+3. Update the `@routing` block in `.beta/config.toon`.
 
 ### Group Settings
 1. List available groups from SQLite.

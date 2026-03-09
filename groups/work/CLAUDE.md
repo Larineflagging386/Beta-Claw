@@ -5,7 +5,7 @@ Created: 2025-03-07
 Work group for professional tasks. Handles coding, research, analysis,
 and project management.
 
-## MicroClaw Config
+## BetaClaw Config
 @group{
   triggerWord:@rem
   allowedTools:[brave_search, fetch_url, read_file, write_file, run_code, list_dir, install_pkg]

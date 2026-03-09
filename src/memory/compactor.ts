@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MicroClawDB } from '../db.js';
+import { betaclawDB } from '../db.js';
 import { encode } from '../core/toon-serializer.js';
 import crypto from 'node:crypto';
 
@@ -51,9 +51,9 @@ function splitSentences(text: string): string[] {
 }
 
 class Compactor {
-  private readonly db: MicroClawDB;
+  private readonly db: betaclawDB;
 
-  constructor(db: MicroClawDB) {
+  constructor(db: betaclawDB) {
     this.db = db;
   }
 

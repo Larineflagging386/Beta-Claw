@@ -45,7 +45,7 @@ class Vault {
   private derivedKey: Buffer | null = null;
 
   constructor(vaultDir?: string) {
-    this.vaultDir = vaultDir ?? '.micro';
+    this.vaultDir = vaultDir ?? '.beta';
     this.saltPath = path.join(this.vaultDir, 'vault.salt');
     this.encPath = path.join(this.vaultDir, 'vault.enc');
   }

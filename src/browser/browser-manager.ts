@@ -20,7 +20,7 @@ interface BrowserSession {
 
 class BrowserManager {
   private sessions = new Map<string, BrowserSession>();
-  private stateDir = path.join(PATHS.micro, 'browser-state');
+  private stateDir = path.join(PATHS.beta, 'browser-state');
 
   async getOrCreate(cfg: BrowserSessionConfig): Promise<BrowserSession> {
     const existing = this.sessions.get(cfg.sessionId);

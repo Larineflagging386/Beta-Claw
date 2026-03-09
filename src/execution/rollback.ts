@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
-import type { MicroClawDB } from '../db.js';
+import type { betaclawDB } from '../db.js';
 
 const ManifestEntrySchema = z.object({
   hash: z.string().nullable(),
@@ -36,9 +36,9 @@ function formatTimestamp(date: Date): string {
 class RollbackManager {
   private readonly snapshotsDir: string;
   private readonly blobsDir: string;
-  private readonly db: MicroClawDB | undefined;
+  private readonly db: betaclawDB | undefined;
 
-  constructor(snapshotsDir = '.micro/snapshots', db?: MicroClawDB) {
+  constructor(snapshotsDir = '.beta/snapshots', db?: betaclawDB) {
     this.snapshotsDir = path.resolve(snapshotsDir);
     this.blobsDir = path.join(this.snapshotsDir, 'blobs');
     this.db = db;
